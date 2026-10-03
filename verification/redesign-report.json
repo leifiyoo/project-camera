@@ -1,0 +1,303 @@
+{
+  "photo": {
+    "path": "verification/redesign-photo.png",
+    "width": 1280,
+    "height": 720
+  },
+  "video": {
+    "path": "verification/redesign-motion.mp4",
+    "width": 960,
+    "height": 540,
+    "duration": 4,
+    "min": 7,
+    "max": 244,
+    "time": 2.20376,
+    "audioTracks": 0
+  },
+  "directImportPreservedCamera": true,
+  "presetUndo": true,
+  "manualClickFocus": {
+    "x": 0,
+    "y": -0.34,
+    "z": 0,
+    "rx": 25,
+    "ry": 35,
+    "rz": -28,
+    "zoom": 1.55,
+    "fov": 32,
+    "focusX": 0.23755207690334884,
+    "focusY": 0.31195683245317507,
+    "autoFocus": false
+  },
+  "advancedDisclosure": true,
+  "cameraAndCanvasControls": true,
+  "modalKeyboardFocus": true,
+  "reload": true,
+  "layouts": [
+    {
+      "mode": "photo",
+      "theme": "light",
+      "viewport": 1440,
+      "pageWidth": 1440,
+      "headerOverlaps": [],
+      "overflowingControls": [],
+      "preview": {
+        "left": 24,
+        "right": 1106,
+        "top": 222.1875,
+        "bottom": 830.8125
+      },
+      "sidebar": {
+        "left": 1130,
+        "right": 1440,
+        "top": 68,
+        "bottom": 931
+      },
+      "timeline": null
+    },
+    {
+      "mode": "photo",
+      "theme": "light",
+      "viewport": 1280,
+      "pageWidth": 1280,
+      "headerOverlaps": [],
+      "overflowingControls": [],
+      "preview": {
+        "left": 24,
+        "right": 946,
+        "top": 267.1875,
+        "bottom": 785.8125
+      },
+      "sidebar": {
+        "left": 970,
+        "right": 1280,
+        "top": 68,
+        "bottom": 931
+      },
+      "timeline": null
+    },
+    {
+      "mode": "photo",
+      "theme": "light",
+      "viewport": 768,
+      "pageWidth": 768,
+      "headerOverlaps": [],
+      "overflowingControls": [],
+      "preview": {
+        "left": 36.28125,
+        "right": 731.71875,
+        "top": 176,
+        "bottom": 567.1875
+      },
+      "sidebar": {
+        "left": 0,
+        "right": 768,
+        "top": 621.1875,
+        "bottom": 1407.734375
+      },
+      "timeline": null
+    },
+    {
+      "mode": "photo",
+      "theme": "light",
+      "viewport": 390,
+      "pageWidth": 390,
+      "headerOverlaps": [],
+      "overflowingControls": [],
+      "preview": {
+        "left": 24,
+        "right": 366,
+        "top": 299.40625,
+        "bottom": 491.78125
+      },
+      "sidebar": {
+        "left": 0,
+        "right": 390,
+        "top": 645.1875,
+        "bottom": 1586.234375
+      },
+      "timeline": null
+    },
+    {
+      "mode": "photo",
+      "theme": "dark",
+      "viewport": 1440,
+      "pageWidth": 1440,
+      "headerOverlaps": [],
+      "overflowingControls": [],
+      "preview": {
+        "left": 24,
+        "right": 1106,
+        "top": 222.1875,
+        "bottom": 830.8125
+      },
+      "sidebar": {
+        "left": 1130,
+        "right": 1440,
+        "top": 68,
+        "bottom": 931
+      },
+      "timeline": null
+    },
+    {
+      "mode": "photo",
+      "theme": "dark",
+      "viewport": 1280,
+      "pageWidth": 1280,
+      "headerOverlaps": [],
+      "overflowingControls": [],
+      "preview": {
+        "left": 24,
+        "right": 946,
+        "top": 267.1875,
+        "bottom": 785.8125
+      },
+      "sidebar": {
+        "left": 970,
+        "right": 1280,
+        "top": 68,
+        "bottom": 931
+      },
+      "timeline": null
+    },
+    {
+      "mode": "photo",
+      "theme": "dark",
+      "viewport": 768,
+      "pageWidth": 768,
+      "headerOverlaps": [],
+      "overflowingControls": [],
+      "preview": {
+        "left": 36.28125,
+        "right": 731.71875,
+        "top": 176,
+        "bottom": 567.1875
+      },
+      "sidebar": {
+        "left": 0,
+        "right": 768,
+        "top": 621.1875,
+        "bottom": 1407.734375
+      },
+      "timeline": null
+    },
+    {
+      "mode": "photo",
+      "theme": "dark",
+      "viewport": 390,
+      "pageWidth": 390,
+      "headerOverlaps": [],
+      "overflowingControls": [],
+      "preview": {
+        "left": 24,
+        "right": 366,
+        "top": 299.40625,
+        "bottom": 491.78125
+      },
+      "sidebar": {
+        "left": 0,
+        "right": 390,
+        "top": 645.1875,
+        "bottom": 1586.234375
+      },
+      "timeline": null
+    },
+    {
+      "mode": "video",
+      "theme": "light",
+      "viewport": 1440,
+      "pageWidth": 1440,
+      "headerOverlaps": [],
+      "overflowingControls": [],
+      "preview": {
+        "left": 87.671875,
+        "right": 1042.328125,
+        "top": 176,
+        "bottom": 713
+      },
+      "sidebar": {
+        "left": 1130,
+        "right": 1440,
+        "top": 68,
+        "bottom": 931
+      },
+      "timeline": {
+        "top": 767,
+        "bottom": 931
+      }
+    },
+    {
+      "mode": "video",
+      "theme": "light",
+      "viewport": 1280,
+      "pageWidth": 1280,
+      "headerOverlaps": [],
+      "overflowingControls": [],
+      "preview": {
+        "left": 7.671875,
+        "right": 962.328125,
+        "top": 176,
+        "bottom": 713
+      },
+      "sidebar": {
+        "left": 970,
+        "right": 1280,
+        "top": 68,
+        "bottom": 931
+      },
+      "timeline": {
+        "top": 767,
+        "bottom": 931
+      }
+    },
+    {
+      "mode": "video",
+      "theme": "light",
+      "viewport": 768,
+      "pageWidth": 768,
+      "headerOverlaps": [],
+      "overflowingControls": [],
+      "preview": {
+        "left": 36.28125,
+        "right": 731.71875,
+        "top": 176,
+        "bottom": 567.1875
+      },
+      "sidebar": {
+        "left": 0,
+        "right": 768,
+        "top": 785.1875,
+        "bottom": 1571.734375
+      },
+      "timeline": {
+        "top": 621.1875,
+        "bottom": 785.1875
+      }
+    },
+    {
+      "mode": "video",
+      "theme": "light",
+      "viewport": 390,
+      "pageWidth": 390,
+      "headerOverlaps": [],
+      "overflowingControls": [],
+      "preview": {
+        "left": 24,
+        "right": 366,
+        "top": 299.40625,
+        "bottom": 491.78125
+      },
+      "sidebar": {
+        "left": 0,
+        "right": 390,
+        "top": 813.1875,
+        "bottom": 1754.234375
+      },
+      "timeline": {
+        "top": 645.1875,
+        "bottom": 813.1875
+      }
+    }
+  ],
+  "errors": []
+}

@@ -1,0 +1,120 @@
+{
+  "presets": [
+    {
+      "name": "Floating Hero",
+      "assetId": "2b9b0f1e-515a-4f57-aea3-4e4f0a582c50",
+      "frame": "plain",
+      "pose": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "rx": 14,
+        "ry": -18,
+        "rz": -5,
+        "zoom": 0.86,
+        "fov": 38,
+        "focusX": 0.2375,
+        "focusY": 0.312,
+        "autoFocus": false
+      }
+    },
+    {
+      "name": "Device Detail",
+      "assetId": "2b9b0f1e-515a-4f57-aea3-4e4f0a582c50",
+      "frame": "laptop",
+      "pose": {
+        "x": -0.08,
+        "y": -0.05,
+        "z": 0,
+        "rx": 18,
+        "ry": -24,
+        "rz": -13,
+        "zoom": 1.4,
+        "fov": 32,
+        "focusX": 0.2375,
+        "focusY": 0.312,
+        "autoFocus": false
+      }
+    },
+    {
+      "name": "Clean Front",
+      "assetId": "2b9b0f1e-515a-4f57-aea3-4e4f0a582c50",
+      "frame": "plain",
+      "pose": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "rx": 0,
+        "ry": 0,
+        "rz": 0,
+        "zoom": 0.92,
+        "fov": 38,
+        "focusX": 0.5,
+        "focusY": 0.5,
+        "autoFocus": true
+      }
+    },
+    {
+      "name": "Signature Macro",
+      "assetId": "2b9b0f1e-515a-4f57-aea3-4e4f0a582c50",
+      "frame": "plain",
+      "pose": {
+        "x": 0,
+        "y": -0.34,
+        "z": 0,
+        "rx": 25,
+        "ry": 35,
+        "rz": -28,
+        "zoom": 1.55,
+        "fov": 32,
+        "focusX": 0.2375,
+        "focusY": 0.312,
+        "autoFocus": false
+      }
+    },
+    {
+      "name": "Device Detail",
+      "assetId": "2b9b0f1e-515a-4f57-aea3-4e4f0a582c50",
+      "frame": "laptop",
+      "pose": {
+        "x": -0.08,
+        "y": -0.05,
+        "z": 0,
+        "rx": 18,
+        "ry": -24,
+        "rz": -13,
+        "zoom": 1.4,
+        "fov": 32,
+        "focusX": 0.28039215583920774,
+        "focusY": 0.2950338392054781,
+        "autoFocus": false
+      }
+    }
+  ],
+  "errors": [],
+  "undoPreservesAssetAndRestoresDevice": true,
+  "manualFocus": {
+    "source": {
+      "x": 0.28039215583920774,
+      "y": 0.2950338392054781
+    },
+    "click": {
+      "x": 0.420145,
+      "y": 0.5539660000000001
+    },
+    "marker": {
+      "x": 0.420141,
+      "y": 0.553949,
+      "hidden": false
+    }
+  },
+  "focusPersistsAfterRotationZoomResize": true,
+  "transparentPng": {
+    "width": 1280,
+    "height": 720,
+    "clear": 1325,
+    "partial": 10141,
+    "opaque": 910134,
+    "opaqueColors": 6947
+  }
+}
