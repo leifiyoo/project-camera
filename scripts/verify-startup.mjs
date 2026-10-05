@@ -45,9 +45,11 @@ try {
   await page.reload();
   await expect(page.getByRole('region', { name: 'Composition studio' })).toBeVisible();
   await page.screenshot({ path: 'verification/release-imported.png' });
-  await page.getByRole('button', { name: 'VIDEO', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Your video starts here.' })).toBeVisible();
-  await page.getByRole('button', { name: 'PHOTO', exact: true }).click();
+  // Video editing is disabled for now; the header advertises it as coming soon.
+  const video = page.getByRole('button', { name: /^Video/ });
+  await expect(video).toHaveAttribute('aria-disabled', 'true');
+  await video.hover();
+  await expect(page.getByRole('tooltip')).toContainText('Video is coming soon');
   await expect(page.getByRole('region', { name: 'Composition studio' })).toBeVisible();
   assert.deepEqual(errors, [], 'Browser must have no page errors');
   const report = {
@@ -58,7 +60,7 @@ try {
       'Photo import',
       '1920 × 1080 PNG export with image detail',
       'Saved photo restored after reload',
-      'Independent photo/video workspaces',
+      'Video marked as coming soon',
     ],
     errors,
   };
@@ -66,7 +68,7 @@ try {
     'verification/release-startup-report.json',
     `${JSON.stringify(report, null, 2)}\n`,
   );
-  console.log('PASS Startup, import, PNG export, persistence, photo/video switching');
+  console.log('PASS Startup, import, PNG export, persistence, video teaser');
 } finally {
   await context.close();
   await browser.close();
