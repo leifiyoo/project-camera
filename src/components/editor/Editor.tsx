@@ -294,7 +294,10 @@ export default function Editor() {
     const unsub = useStudio.subscribe((s, prev) => {
       if (prev.transaction && !s.transaction && s.project) {
         if (saving.current) clearTimeout(saving.current);
-        saving.current = setTimeout(() => void persist(s.project!), 600);
+        saving.current = setTimeout(() => {
+          const p = useStudio.getState().project;
+          if (p) void persist(p);
+        }, 600);
       }
     });
     return unsub;

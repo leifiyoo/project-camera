@@ -30,9 +30,15 @@ export async function removeLegacyExamples() {
   const disposable = new Set(examples.flatMap(referencedAssetIds));
   const db = await database();
   const transaction = db.transaction(['projects', 'assets'], 'readwrite');
-  for (const example of examples) await transaction.objectStore('projects').delete(example.id);
-  for (const asset of assets)
-    if (bundledNames.has(asset.name) && disposable.has(asset.id) && !used.has(asset.id))
-      await transaction.objectStore('assets').delete(asset.id);
-  await transaction.done;
+  // Queue every delete before awaiting so one failure rejects a single promise and
+  // aborts the whole transaction instead of leaving unhandled request rejections.
+  await Promise.all([
+    ...examples.map((example) => transaction.objectStore('projects').delete(example.id)),
+    ...assets
+      .filter(
+        (asset) => bundledNames.has(asset.name) && disposable.has(asset.id) && !used.has(asset.id),
+      )
+      .map((asset) => transaction.objectStore('assets').delete(asset.id)),
+    transaction.done,
+  ]);
 }
