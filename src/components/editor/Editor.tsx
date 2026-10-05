@@ -86,7 +86,8 @@ export default function Editor() {
     [focusRequest, setFocusRequest] = useState(0),
     [exporting, setExporting] = useState(false),
     [quality, setQuality] = useState<'high' | 'draft'>('high'),
-    [theme, setTheme] = useState('light'),
+    [systemTheme, setSystemTheme] = useState<'light' | 'dark'>('light'),
+    [themeOverride, setThemeOverride] = useState<'light' | 'dark' | null>(null),
     [saveStatus, setSaveStatus] = useState('Saved'),
     [message, setMessage] = useState(''),
     [importStatus, setImportStatus] = useState(''),
@@ -94,6 +95,7 @@ export default function Editor() {
     [recording, setRecording] = useState(false),
     [recordTime, setRecordTime] = useState(0),
     [direction, setDirection] = useState<Direction>('macroGlide');
+  const theme = themeOverride ?? systemTheme;
   const fileInput = useRef<HTMLInputElement>(null),
     photoInput = useRef<HTMLInputElement>(null),
     packageInput = useRef<HTMLInputElement>(null),
@@ -144,11 +146,9 @@ export default function Editor() {
   }, []);
   useEffect(() => {
     let active = true;
-    const storedTheme =
-        localStorage.getItem('studio-theme') ||
-        (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'),
+    const storedTheme = localStorage.getItem('studio-theme-override'),
       storedQuality = localStorage.getItem('studio-quality') === 'draft' ? 'draft' : 'high';
-    setTheme(storedTheme);
+    if (storedTheme === 'light' || storedTheme === 'dark') setThemeOverride(storedTheme);
     setQuality(storedQuality);
     bootstrap ??= boot();
     void bootstrap
@@ -176,9 +176,26 @@ export default function Editor() {
     };
   }, [refresh]);
   useEffect(() => {
+    const query = window.matchMedia('(prefers-color-scheme: dark)'),
+      sync = () => setSystemTheme(query.matches ? 'dark' : 'light');
+    sync();
+    query.addEventListener('change', sync);
+    return () => query.removeEventListener('change', sync);
+  }, []);
+  useEffect(() => {
     document.documentElement.dataset.theme = theme;
-    localStorage.setItem('studio-theme', theme);
   }, [theme]);
+  const toggleTheme = () => {
+    const next = theme === 'light' ? 'dark' : 'light';
+    // Choosing the system appearance clears the override so the app follows the OS again.
+    if (next === systemTheme) {
+      localStorage.removeItem('studio-theme-override');
+      setThemeOverride(null);
+    } else {
+      localStorage.setItem('studio-theme-override', next);
+      setThemeOverride(next);
+    }
+  };
   useEffect(() => {
     localStorage.setItem('studio-quality', quality);
   }, [quality]);
@@ -788,7 +805,7 @@ export default function Editor() {
                   <DropdownMenu.Item
                     className="paper-menu-item"
                     aria-label={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
-                    onSelect={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+                    onSelect={toggleTheme}
                   >
                     <UIIcon name="settings" />
                     <span>{theme === 'light' ? 'Dark appearance' : 'Light appearance'}</span>
