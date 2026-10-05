@@ -20,6 +20,7 @@ export type Keyframe = {
   pose: CameraPose;
   easing: Easing;
   bezier: [number, number, number, number];
+  easingWindow?: [number, number];
 };
 export type Asset = {
   id: string;
@@ -47,8 +48,12 @@ export type FrameStyle = {
   cropZoom: number;
 };
 export type Background = {
-  kind: 'color' | 'image' | 'transparent';
+  kind: 'color' | 'gradient' | 'image' | 'transparent';
   color: string;
+  /** Second gradient stop; the first stop is `color`. */
+  color2?: string;
+  /** Gradient direction in degrees, CSS convention (0 = upwards, 90 = to the right). */
+  angle?: number;
   assetId?: string;
   fit: 'fit' | 'fill';
   x: number;
@@ -67,6 +72,7 @@ export type TextLayer = {
   color: string;
   align: 'left' | 'center' | 'right';
   animation: 'none' | 'simple' | 'typewriter' | 'letters' | 'words' | 'blur';
+  animationOffset?: number;
   start: number;
   duration: number;
   end: number;
@@ -93,6 +99,7 @@ export type Scene = {
   trimIn: number;
   trimOut: number;
   loop: boolean;
+  sourceOffset?: number;
   pose: CameraPose;
   frame: FrameStyle;
   background: Background;
@@ -104,7 +111,7 @@ export type Scene = {
   shadowIntensity: number;
   layers: Layer[];
   keyframes: Keyframe[];
-  transition: { kind: 'cut' | 'fade' | 'push' | 'zoom'; duration: number };
+  transition: { kind: 'cut' | 'fade' | 'push' | 'zoom' | 'wipe' | 'blur'; duration: number };
   points: (Vec2 & { w: number; h: number })[];
   seed: number;
 };

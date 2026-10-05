@@ -1,6 +1,6 @@
 # Interface Studio
 
-A local photo and motion studio for software interfaces. Opens directly in an empty editor; original bundled screenshots are available as examples. No account, cloud uploads, API keys, watermark, or usage quota.
+A local photo and motion studio for images and videos. Opens directly in an empty editor without template projects. No account, cloud uploads, API keys, watermark, or usage quota.
 
 ## Run
 
@@ -42,20 +42,19 @@ Open [localhost:3000](http://localhost:3000). Use `npm start -- --port 3001` for
 
 ## Using the studio
 
-- In **Photo**, use **Upload photo** for your own image or screenshot. Replacing a photo keeps its camera, effects, text and logos. **Library**, drag-and-drop and image paste remain available; Video's **Add media** also offers screen recording.
-- The large preview and adjacent controls replace the old instrument dock. The header has Photo/Video, import and Export; preview quality, appearance and help live in **Workspace options**.
-- **Look** offers Signature Macro, Floating Hero, Device Detail and Clean Front with source thumbnails. Presets keep media and layers, support Undo, and clear their selection when the actual settings change. **Try an example → Open Macro example** loads a local flat dashboard with an editable close shot and motion path.
-- In **Look**, choose **MF**, then click the photo itself to place the sharp depth. On narrow screens this returns to the preview. Dragging moves the photo; Ctrl/Cmd + drag rotates it. **AF** uses a marked detail or a useful default. No focus coordinates are required.
-- Depth of field has a visible on/off switch and strength slider. **Fine blur controls** reveals the focus width and blur limit. Turning it off keeps the settings. A tilted surface creates different near/far depths; a frontal plane remains evenly sharp.
-- **Camera** has Zoom and three rotation sliders. Position and FOV are under **Camera position & optics**. Ctrl/Cmd + scroll also zooms. **Canvas** groups background, frame/device, shadow and aspect ratio; crop and frame appearance are additional disclosures. **Fit to frame** remains explicit, so slider changes and resizing preserve a close crop.
-- **Animate camera** opens Compose for editable **Macro Glide**, **Focus Pull** and **Hero Reveal** paths over four to six seconds. Focus Pull uses two marked source points, or a sensible second point. Existing text, logos, source trimming and transitions are preserved.
-- In Video, drag scene edges or edit duration, trim source videos, reorder scenes, and scrub/play. Diamonds select camera positions. The inspector edits positions, easing, custom Bézier controls, transitions, text, and logos.
-- Export PNG at the current photo or timeline time, or export the entire silent video. HD, 2K, 4K, custom size, and 30/60 fps are available. The export dialog checks the browser's actual encoder.
+- Use **Import** in either workspace for images or MP4, MOV and WebM videos. A video opens the Video workspace automatically and leaves your photo intact. Drag-and-drop, image paste and the media Library also work; screen recording is available in Library.
+- The header contains the project name, Photo/Video, Import and Export. Projects, Library and Settings open in centered dialogs. Settings contains appearance, preview quality, canvas and advanced controls. Existing recognizable bundled example documents are removed once; renamed or independently created projects remain.
+- The Properties controls share neutral light/dark surfaces. **Manual** focus lets you click the source to choose its sharp depth. **Auto** uses a marked detail or a useful default. **Depth blur** controls the strength. A tilted surface creates different near/far depths; a frontal plane remains evenly sharp.
+- **Camera** contains Zoom and rotation. Background, shadow and aspect ratio use the same compact controls. Fine cropping, focus precision and camera position live under Settings → Advanced. Ctrl/Cmd + drag rotates; Ctrl/Cmd + scroll zooms.
+- **Animate camera** opens visual choices for **Macro glide**, **Focus pull** and **Hero reveal**. Creating motion from a photo makes a four-to-six-second clip. Applying motion to a video preserves its existing length, source trim, text, logos and transition.
+- In Video, **Clip**, **Design** and **Layers** separate common edits from effects. Drag clips to reorder, trim from either edge, and use **Split** or Ctrl/Cmd B at the playhead. Split clips retain source timing, eased camera motion and text-animation progress. **Fit** resets the timeline zoom.
+- Click the transition symbol between clips for **None**, **Dissolve**, **Slide**, **Zoom**, **Wipe** or **Blur**. Animated tiles show each effect; the duration control and Preview button operate on the actual clips. Camera diamonds select positions for advanced easing edits.
+- Export opens a composition preview alongside resolution, format and output options. PNG, HD/2K/4K/custom video, and 30/60 fps are supported subject to the browser encoder. Video output remains silent. Progress, cancellation, success and repeat download are available.
 - Projects autosave to this browser's IndexedDB. The project menu creates, renames, duplicates, switches, deletes, and imports/exports portable ZIP packages containing original media. Library downloads/deletes saved media and exports. Media used by a saved project cannot be deleted until its references are removed.
 
 ## Architecture
 
-Next.js App Router, strict TypeScript, React, Tailwind with a restrained studio workspace, locally bundled Geist (and Inter for existing rendered text), and the existing Lucide icon family. Browser-only modules load behind client boundaries.
+Next.js App Router, strict TypeScript, React, Tailwind and Tabler icons. The workspace uses Whirl's monochrome surface hierarchy, self-hosted Inter variable font, capsule choices and subtle motion. Design adaptations are isolated in `src/app/whirl.css`; `LICENSE.whirl.txt` retains the reference project's MIT notice and `public/fonts/OFL.txt` covers Inter. Browser-only modules load behind client boundaries.
 
 - `src/components/editor`: editor shell, stage, persistent shot sidebar, progressive inspector, timeline, export dialog, accessible controls.
 - `src/lib/studio`: versioned serializable documents, Zustand transactions/undo, deterministic camera/easing/transition evaluation, seeded local composition. Playback time is a separate observable, outside document history and autosave.

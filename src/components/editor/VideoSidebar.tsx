@@ -1,21 +1,14 @@
 'use client';
 import { useState } from 'react';
-import {
-  Film,
-  ImagePlus,
-  Layers,
-  SlidersHorizontal,
-  Type,
-  Upload,
-  ChevronDown,
-} from 'lucide-react';
+import { Film, ImagePlus, Type, Upload, ChevronDown } from '@/components/ui/studio-icons';
 import { selectedScene, useStudio } from '@/lib/studio/store';
 import { resizeClip } from '@/lib/studio/timeline-edit';
 import type { Asset } from '@/lib/studio/model';
 import Inspector, { type MediaTarget } from './Inspector';
 import { Field, NumberField, Select, SelectOption } from './primitives';
+import TransitionPicker from './TransitionPicker';
 
-function CanvasSettings() {
+export function CanvasSettings() {
   const output = useStudio((s) => s.project?.output);
   if (!output) return null;
   return (
@@ -64,8 +57,8 @@ export default function VideoSidebar({
   return (
     <aside className="video-sidebar" aria-label="Video properties">
       <header className="video-sidebar-heading">
-        <SlidersHorizontal size={16} />
-        <h2>{scene ? 'Scene properties' : 'Video settings'}</h2>
+        <h2>Properties</h2>
+        <span>{scene ? 'Video' : 'Canvas'}</span>
       </header>
       {!scene ? (
         <div className="video-sidebar-body">
@@ -74,27 +67,25 @@ export default function VideoSidebar({
             <CanvasSettings />
           </section>
           <div className="video-sidebar-empty">
-            <Film size={22} />
-            <strong>No scenes yet</strong>
-            <p>Import a video or image, or add a blank scene from the timeline.</p>
-            <button className="secondary full" onClick={() => onImport('media')}>
-              <Upload size={14} /> Import media
-            </button>
+            <p>Select a clip in the timeline to edit it.</p>
           </div>
         </div>
       ) : (
         <>
           <div className="video-source">
-            <span>
-              {scene.kind === 'text' ? (
-                <Type size={16} />
-              ) : asset?.kind === 'video' ? (
-                <Film size={16} />
-              ) : (
-                <ImagePlus size={16} />
-              )}
-            </span>
-            <strong title={scene.name}>{scene.name}</strong>
+            {asset ? (
+              <img src={asset.thumbnail} alt="" />
+            ) : (
+              <span>{scene.kind === 'text' ? <Type size={16} /> : <ImagePlus size={16} />}</span>
+            )}
+            <div>
+              <strong title={scene.name}>{scene.name}</strong>
+              <small>
+                {asset
+                  ? `${asset.kind === 'video' ? 'Video' : 'Image'} · ${asset.width} × ${asset.height}`
+                  : 'Blank clip'}
+              </small>
+            </div>
           </div>
           <div className="video-property-tabs" role="tablist" aria-label="Scene properties">
             {(['clip', 'design', 'layers'] as const).map((value) => (
@@ -127,15 +118,7 @@ export default function VideoSidebar({
                   document.getElementById(`video-tab-${tabs[next]}`)?.focus();
                 }}
               >
-                {value === 'clip' ? (
-                  'Clip'
-                ) : value === 'design' ? (
-                  'Design'
-                ) : (
-                  <>
-                    <Layers size={13} /> Layers
-                  </>
-                )}
+                {value === 'clip' ? 'Clip' : value === 'design' ? 'Design' : 'Layers'}
               </button>
             ))}
           </div>
@@ -175,9 +158,6 @@ export default function VideoSidebar({
                       )
                     }
                   />
-                  <p className="video-property-note">
-                    Drag either edge in the timeline to change the length.
-                  </p>
                 </section>
                 <section className="video-property-section">
                   <h3>Source</h3>
@@ -188,7 +168,10 @@ export default function VideoSidebar({
                     <Upload size={14} /> {asset ? 'Replace media' : 'Choose media'}
                   </button>
                   {asset?.kind === 'video' && (
-                    <>
+                    <details className="video-trim-details">
+                      <summary>
+                        Trim &amp; playback <ChevronDown size={14} />
+                      </summary>
                       <div className="field-grid">
                         <NumberField
                           label="Video in"
@@ -248,49 +231,35 @@ export default function VideoSidebar({
                         />{' '}
                         Loop video
                       </label>
-                    </>
+                    </details>
                   )}
                 </section>
-                <details className="video-property-details">
-                  <summary>
-                    Transition <ChevronDown size={14} />
-                  </summary>
-                  <Field label="Transition">
-                    <Select
-                      value={scene.transition.kind}
-                      onValueChange={(value) =>
-                        state.editScene((s) => {
-                          s.transition.kind = value as typeof s.transition.kind;
-                        })
-                      }
-                    >
-                      {(['cut', 'fade', 'push', 'zoom'] as const).map((value) => (
-                        <SelectOption value={value} key={value}>
-                          {value === 'cut' ? 'None' : value[0].toUpperCase() + value.slice(1)}
-                        </SelectOption>
-                      ))}
-                    </Select>
-                  </Field>
-                  {scene.transition.kind !== 'cut' && (
-                    <NumberField
-                      label="Transition duration"
-                      value={scene.transition.duration}
-                      min={0}
-                      max={30}
-                      step={0.1}
-                      unit="s"
-                      onChange={(value) =>
-                        state.editScene((s) => {
-                          s.transition.duration = value;
-                        })
-                      }
-                    />
-                  )}
-                </details>
+                <TransitionPicker sceneId={scene.id} inline />
               </>
             )}
             {active === 'design' && (
               <>
+                <section className="video-property-section">
+                  <h3>Camera</h3>
+                  <Inspector kind="camera" {...inspectorProps} />
+                  {scene.assetId && (
+                    <button
+                      className="motion-action"
+                      aria-label={
+                        scene.keyframes.length ? 'Edit camera motion' : 'Add camera motion'
+                      }
+                      onClick={onAnimate}
+                    >
+                      <Film size={14} />
+                      <span>
+                        {scene.keyframes.length ? 'Edit camera motion' : 'Add camera motion'}
+                      </span>
+                      <small>
+                        {scene.keyframes.length ? `${scene.keyframes.length} positions` : '+'}
+                      </small>
+                    </button>
+                  )}
+                </section>
                 <section className="video-property-section">
                   <h3>Background</h3>
                   <Inspector kind="background" {...inspectorProps} />
@@ -301,12 +270,21 @@ export default function VideoSidebar({
                 </section>
                 <details className="video-property-details" open={keyId ? true : undefined}>
                   <summary>
-                    Camera &amp; motion <ChevronDown size={14} />
+                    {keyId ? 'Selected camera position' : 'Camera keyframes'}{' '}
+                    <ChevronDown size={14} />
                   </summary>
                   <Inspector kind="inspector" section="camera" {...inspectorProps} />
-                  {scene.assetId && (
-                    <button className="secondary full" onClick={onAnimate}>
-                      <Film size={14} /> Animate camera
+                  {!!scene.keyframes.length && (
+                    <button
+                      className="text-button"
+                      onClick={() => {
+                        state.editScene((s) => {
+                          s.keyframes = [];
+                        });
+                        state.selectKey(null);
+                      }}
+                    >
+                      Remove motion
                     </button>
                   )}
                 </details>

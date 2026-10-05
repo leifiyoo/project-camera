@@ -77,7 +77,18 @@ export function cameraAtTime(scene: Scene, time: number): CameraPose {
       const a = keys[i - 1],
         b = keys[i];
       const t = (time - a.time) / Math.max(0.0001, b.time - a.time);
-      return interpolatePose(a.pose, b.pose, ease(t, a.easing, a.bezier));
+      const [from, to] = a.easingWindow ?? [0, 1];
+      const start = ease(from, a.easing, a.bezier);
+      const end = ease(to, a.easing, a.bezier);
+      const progress =
+        Math.abs(end - start) > 0.0000001
+          ? (ease(from + (to - from) * t, a.easing, a.bezier) - start) / (end - start)
+          : t;
+      const pose = interpolatePose(a.pose, b.pose, progress);
+      if (a.easingWindow && a.pose.autoFocus !== b.pose.autoFocus)
+        pose.autoFocus =
+          start + (end - start) * progress < 0.5 ? a.pose.autoFocus : b.pose.autoFocus;
+      return pose;
     }
   }
   return keys.at(-1)!.pose;
@@ -88,7 +99,10 @@ export function mediaTime(scene: Scene, localTime: number, assetDuration: number
   const elapsed = Math.max(0, localTime);
   return Math.min(
     assetDuration - 0.001,
-    start + (scene.loop ? elapsed % (end - start) : Math.min(elapsed, end - start - 0.001)),
+    start +
+      (scene.loop
+        ? (elapsed + (scene.sourceOffset ?? 0)) % (end - start)
+        : Math.min(elapsed, end - start - 0.001)),
   );
 }
 export type EvaluatedScene = {
@@ -98,6 +112,8 @@ export type EvaluatedScene = {
   opacity: number;
   offsetX: number;
   scale: number;
+  reveal?: number;
+  transitionBlur?: number;
 };
 export type RenderState = {
   width: number;
@@ -131,7 +147,7 @@ export function evaluateProjectAtTime(
   const duration = totalDuration(project);
   const t = clamp(time, 0, Math.max(0, duration - 0.000001));
   const active = spans.filter((s) => t >= s.start && t < s.end);
-  const layers = active.map((s) => ({
+  const layers: EvaluatedScene[] = active.map((s) => ({
     scene: s.scene,
     localTime: t - s.start,
     pose: cameraAtTime(s.scene, t - s.start),
@@ -154,6 +170,14 @@ export function evaluateProjectAtTime(
       case 'zoom':
         a.scale = 1 + p * 0.12;
         b.scale = 0.88 + p * 0.12;
+        b.opacity = p;
+        break;
+      case 'wipe':
+        b.reveal = p;
+        break;
+      case 'blur':
+        a.transitionBlur = p;
+        b.transitionBlur = 1 - p;
         b.opacity = p;
         break;
     }

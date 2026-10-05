@@ -28,6 +28,7 @@ const text = z.object({
   color,
   align: z.enum(['left', 'center', 'right']),
   animation: z.enum(['none', 'simple', 'typewriter', 'letters', 'words', 'blur']),
+  animationOffset: num.min(0).optional(),
   start: num.min(0),
   duration: num.min(0.01),
   end: num.min(0),
@@ -53,6 +54,7 @@ const scene = z.object({
   trimIn: num.min(0),
   trimOut: num.min(0),
   loop: z.boolean(),
+  sourceOffset: num.min(0).optional(),
   pose,
   frame: z.object({
     kind: z.enum(['plain', 'laptop', 'phone', 'monitor']),
@@ -67,8 +69,10 @@ const scene = z.object({
     cropZoom: num.min(1).max(4),
   }),
   background: z.object({
-    kind: z.enum(['color', 'image', 'transparent']),
+    kind: z.enum(['color', 'gradient', 'image', 'transparent']),
     color,
+    color2: color.optional(),
+    angle: num.min(-360).max(360).optional(),
     assetId: id.optional(),
     fit: z.enum(['fit', 'fill']),
     x: num.min(0).max(1),
@@ -87,6 +91,7 @@ const scene = z.object({
       time: num.min(0),
       pose,
       easing: z.enum(['linear', 'ease', 'in', 'out', 'inOut', 'smooth', 'custom']),
+      easingWindow: z.tuple([num.min(0).max(1), num.min(0).max(1)]).optional(),
       bezier: z.tuple([
         num.min(0).max(1),
         num.min(-2).max(3),
@@ -96,7 +101,7 @@ const scene = z.object({
     }),
   ),
   transition: z.object({
-    kind: z.enum(['cut', 'fade', 'push', 'zoom']),
+    kind: z.enum(['cut', 'fade', 'push', 'zoom', 'wipe', 'blur']),
     duration: num.min(0).max(30),
   }),
   points: z.array(

@@ -1,0 +1,17 @@
+{
+  "checks": [
+    "Empty workspace: no templates, footer or unused camera controls",
+    "Photo import, light focus switch and text-only shadow dropdown",
+    "Whirl typography, monochrome selected states, dark surfaces and keyboard capsules",
+    "Centered projects, library and settings; appearance and Escape work",
+    "PNG export: preview, rendering, download and success state",
+    "Real WebM upload automatically opens Video and preserves the photo",
+    "Split, undo/redo, six transitions and bounded transition playback",
+    "Progressive video properties, visual motion choices and text layers",
+    "Video export decodes with the actual overlapped timeline duration",
+    "Video, transitions and layers persist after reload",
+    "Responsive desktop/tablet/mobile, modal focus and reduced motion"
+  ],
+  "errors": [],
+  "demoRequests": []
+}

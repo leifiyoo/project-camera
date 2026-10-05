@@ -10,7 +10,7 @@ import {
   AlignLeft,
   AlignCenter,
   AlignRight,
-} from 'lucide-react';
+} from '@/components/ui/studio-icons';
 import { Button } from '@radix-ui/themes';
 import { PaperSegmentedControl } from '@/components/ui/paper-segmented-control';
 import { useStudio, selectedScene } from '@/lib/studio/store';
@@ -51,6 +51,7 @@ function RotationFields({
           min={-180}
           max={180}
           step={0.1}
+          unit="°"
           scrub
           onChange={(value) =>
             onChange((p) => {
@@ -62,6 +63,30 @@ function RotationFields({
     </div>
   );
 }
+const aspectPresets = [
+  { value: '16:9', label: '16:9 · Slides' },
+  { value: '16:10', label: '16:10 · Laptop' },
+  { value: '191:100', label: '1.91:1 · Link card' },
+  { value: '3:2', label: '3:2 · Photo' },
+  { value: '4:3', label: '4:3 · Classic' },
+  { value: '1:1', label: '1:1 · Square' },
+  { value: '4:5', label: '4:5 · Portrait' },
+  { value: '9:16', label: '9:16 · Story' },
+  { value: '3:1', label: '3:1 · Banner' },
+  { value: '21:9', label: '21:9 · Wide' },
+] as const;
+const backgroundPresets = [
+  { name: 'Paper', kind: 'color', color: '#f4f4f5' },
+  { name: 'White', kind: 'color', color: '#ffffff' },
+  { name: 'Graphite', kind: 'color', color: '#18181b' },
+  { name: 'Sand', kind: 'gradient', color: '#f6f1e7', color2: '#e3d5bd' },
+  { name: 'Mist', kind: 'gradient', color: '#e0eafc', color2: '#cfdef3' },
+  { name: 'Sunset', kind: 'gradient', color: '#ff9a8b', color2: '#ff6a88' },
+  { name: 'Ocean', kind: 'gradient', color: '#2e3192', color2: '#1bffff' },
+  { name: 'Mint', kind: 'gradient', color: '#d4fc79', color2: '#96e6a1' },
+  { name: 'Violet', kind: 'gradient', color: '#a18cd1', color2: '#fbc2eb' },
+  { name: 'Night', kind: 'gradient', color: '#0f2027', color2: '#2c5364' },
+] as const;
 function PoseFields({
   pose,
   onChange,
@@ -78,6 +103,7 @@ function PoseFields({
         value={pose.zoom}
         min={0.25}
         max={4}
+        unit="×"
         onChange={(value) =>
           onChange((p) => {
             p.zoom = value;
@@ -174,11 +200,19 @@ export default function Inspector({
           onValueChange={(value) =>
             edit((s) => {
               s.background.kind = value as typeof s.background.kind;
+              if (value === 'gradient' && !s.background.color2) {
+                s.background.color = '#e0eafc';
+                s.background.color2 = '#cfdef3';
+                s.background.angle = 135;
+              }
             })
           }
         >
           <SelectOption value="color" icon="color">
             Solid color
+          </SelectOption>
+          <SelectOption value="gradient" icon="color">
+            Gradient
           </SelectOption>
           <SelectOption value="image" icon="image">
             Image
@@ -188,6 +222,44 @@ export default function Inspector({
           </SelectOption>
         </Select>
       </Field>
+      {(scene.background.kind === 'color' || scene.background.kind === 'gradient') && (
+        <div className="background-presets" role="group" aria-label="Background presets">
+          {backgroundPresets.map((preset) => {
+            const active =
+              scene.background.kind === preset.kind &&
+              scene.background.color.toLowerCase() === preset.color &&
+              (preset.kind === 'color' ||
+                (scene.background.color2 || '').toLowerCase() === preset.color2);
+            return (
+              <button
+                key={preset.name}
+                type="button"
+                title={preset.name}
+                aria-label={`${preset.name} background`}
+                aria-pressed={active}
+                style={{
+                  background:
+                    preset.kind === 'gradient'
+                      ? `linear-gradient(135deg, ${preset.color}, ${preset.color2})`
+                      : preset.color,
+                }}
+                onClick={() => {
+                  state.begin();
+                  edit((s) => {
+                    s.background.kind = preset.kind;
+                    s.background.color = preset.color;
+                    if (preset.kind === 'gradient') {
+                      s.background.color2 = preset.color2;
+                      s.background.angle ??= 135;
+                    }
+                  });
+                  state.commit();
+                }}
+              />
+            );
+          })}
+        </div>
+      )}
       {scene.background.kind === 'color' && (
         <Field label="Color">
           <ColorPicker
@@ -200,6 +272,45 @@ export default function Inspector({
             }
           />
         </Field>
+      )}
+      {scene.background.kind === 'gradient' && (
+        <>
+          <Field label="From">
+            <ColorPicker
+              key={scene.id + 'bg1'}
+              value={scene.background.color}
+              onChange={(value) =>
+                edit((s) => {
+                  s.background.color = value;
+                })
+              }
+            />
+          </Field>
+          <Field label="To">
+            <ColorPicker
+              key={scene.id + 'bg2'}
+              value={scene.background.color2 || scene.background.color}
+              onChange={(value) =>
+                edit((s) => {
+                  s.background.color2 = value;
+                })
+              }
+            />
+          </Field>
+          <Range
+            label="Angle"
+            value={scene.background.angle ?? 135}
+            min={0}
+            max={360}
+            step={1}
+            unit="°"
+            onChange={(value) =>
+              edit((s) => {
+                s.background.angle = value;
+              })
+            }
+          />
+        </>
       )}
       {scene.background.kind === 'image' && (
         <>
@@ -360,6 +471,17 @@ export default function Inspector({
   );
   const shadow = (
     <>
+      <Range
+        label="Corners"
+        value={Math.round((scene.frame.radius || 0) * 500)}
+        max={100}
+        step={1}
+        onChange={(v) =>
+          edit((s) => {
+            s.frame.radius = v / 500;
+          })
+        }
+      />
       <Field label="Shadow size">
         <Select
           value={scene.shadow}
@@ -378,32 +500,23 @@ export default function Inspector({
       </Field>
       <Range
         label="Intensity"
-        value={scene.shadowIntensity}
+        value={Math.round(scene.shadowIntensity * 100)}
+        max={100}
+        step={1}
+        unit="%"
         onChange={(v) =>
           edit((s) => {
-            s.shadowIntensity = v;
+            s.shadowIntensity = v / 100;
           })
         }
       />
     </>
   );
+  const aspectKey = project.output.width + ':' + project.output.height;
   const aspect = (
     <Field label="Aspect ratio">
       <Select
-        value={
-          [
-            [16, 9],
-            [16, 10],
-            [4, 3],
-            [1, 1],
-            [4, 5],
-            [9, 16],
-          ].some(
-            ([width, height]) => project.output.width === width && project.output.height === height,
-          )
-            ? project.output.width + ':' + project.output.height
-            : ''
-        }
+        value={aspectPresets.some((preset) => preset.value === aspectKey) ? aspectKey : ''}
         onValueChange={(value) => {
           if (!value) return;
           const [width, height] = value.split(':').map(Number);
@@ -415,16 +528,9 @@ export default function Inspector({
         <SelectOption value="" disabled>
           Custom
         </SelectOption>
-        {[
-          [16, 9],
-          [16, 10],
-          [4, 3],
-          [1, 1],
-          [4, 5],
-          [9, 16],
-        ].map(([width, height]) => (
-          <SelectOption key={width + ':' + height} value={width + ':' + height}>
-            {width}:{height}
+        {aspectPresets.map((preset) => (
+          <SelectOption key={preset.value} value={preset.value}>
+            {preset.label}
           </SelectOption>
         ))}
       </Select>
@@ -553,6 +659,7 @@ export default function Inspector({
         value={pose.zoom}
         min={0.25}
         max={4}
+        unit="×"
         onChange={(v) =>
           editPose((p) => {
             p.zoom = v;
@@ -916,35 +1023,39 @@ export default function Inspector({
                         ]}
                       />
                     </Field>
-                    <Field label="Animation">
-                      <Select
-                        value={layer.animation}
-                        onValueChange={(value) =>
-                          editLayer((l) => {
-                            if (l.kind === 'text') l.animation = value as typeof l.animation;
-                          })
-                        }
-                      >
-                        <SelectOption value="none">None</SelectOption>
-                        <SelectOption value="simple">Simple</SelectOption>
-                        <SelectOption value="typewriter">Typewriter</SelectOption>
-                        <SelectOption value="letters">Letters</SelectOption>
-                        <SelectOption value="words">Words</SelectOption>
-                        <SelectOption value="blur">Blur fade</SelectOption>
-                      </Select>
-                    </Field>
+                    {mode === 'video' && (
+                      <Field label="Animation">
+                        <Select
+                          value={layer.animation}
+                          onValueChange={(value) =>
+                            editLayer((l) => {
+                              if (l.kind === 'text') l.animation = value as typeof l.animation;
+                            })
+                          }
+                        >
+                          <SelectOption value="none">None</SelectOption>
+                          <SelectOption value="simple">Simple</SelectOption>
+                          <SelectOption value="typewriter">Typewriter</SelectOption>
+                          <SelectOption value="letters">Letters</SelectOption>
+                          <SelectOption value="words">Words</SelectOption>
+                          <SelectOption value="blur">Blur fade</SelectOption>
+                        </Select>
+                      </Field>
+                    )}
                   </div>
-                  <NumberField
-                    label="Animation duration"
-                    value={layer.duration}
-                    min={0.01}
-                    unit="s"
-                    onChange={(v) =>
-                      editLayer((l) => {
-                        if (l.kind === 'text') l.duration = v;
-                      })
-                    }
-                  />
+                  {mode === 'video' && (
+                    <NumberField
+                      label="Animation duration"
+                      value={layer.duration}
+                      min={0.01}
+                      unit="s"
+                      onChange={(v) =>
+                        editLayer((l) => {
+                          if (l.kind === 'text') l.duration = v;
+                        })
+                      }
+                    />
+                  )}
                 </>
               ) : (
                 <Field label="Logo image">
@@ -1008,30 +1119,32 @@ export default function Inspector({
                   })
                 }
               />
-              <div className="field-grid">
-                <NumberField
-                  label="Visible from"
-                  value={layer.start}
-                  min={0}
-                  unit="s"
-                  onChange={(v) =>
-                    editLayer((l) => {
-                      l.start = v;
-                    })
-                  }
-                />
-                <NumberField
-                  label="Visible until"
-                  value={layer.end}
-                  min={layer.start}
-                  unit="s"
-                  onChange={(v) =>
-                    editLayer((l) => {
-                      l.end = v;
-                    })
-                  }
-                />
-              </div>
+              {mode === 'video' && (
+                <div className="field-grid">
+                  <NumberField
+                    label="Visible from"
+                    value={layer.start}
+                    min={0}
+                    unit="s"
+                    onChange={(v) =>
+                      editLayer((l) => {
+                        l.start = v;
+                      })
+                    }
+                  />
+                  <NumberField
+                    label="Visible until"
+                    value={layer.end}
+                    min={layer.start}
+                    unit="s"
+                    onChange={(v) =>
+                      editLayer((l) => {
+                        l.end = v;
+                      })
+                    }
+                  />
+                </div>
+              )}
             </>
           )}
         </>
@@ -1107,8 +1220,9 @@ export default function Inspector({
                         value={key.easing}
                         onValueChange={(value) =>
                           edit((s) => {
-                            s.keyframes.find((k) => k.id === keyId)!.easing =
-                              value as typeof key.easing;
+                            const target = s.keyframes.find((k) => k.id === keyId)!;
+                            target.easing = value as typeof key.easing;
+                            delete target.easingWindow;
                           })
                         }
                       >
@@ -1151,6 +1265,7 @@ export default function Inspector({
                             const k = s.keyframes.find((k) => k.id === keyId)!;
                             k.bezier[which] = x;
                             k.bezier[which + 1] = y;
+                            delete k.easingWindow;
                           });
                         }}
                         onPointerUp={state.commit}
@@ -1184,7 +1299,9 @@ export default function Inspector({
                             max={i % 2 ? 3 : 1}
                             onChange={(v) =>
                               edit((s) => {
-                                s.keyframes.find((k) => k.id === keyId)!.bezier[i] = v;
+                                const target = s.keyframes.find((k) => k.id === keyId)!;
+                                target.bezier[i] = v;
+                                delete target.easingWindow;
                               })
                             }
                           />

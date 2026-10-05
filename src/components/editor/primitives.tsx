@@ -12,9 +12,9 @@ import {
   type HTMLAttributes,
   type PointerEvent,
 } from 'react';
-import { X } from 'lucide-react';
+import { X } from '@/components/ui/studio-icons';
 import { IconButton as RadixIconButton, TextField } from '@radix-ui/themes';
-import { Slider, Select as RadixSelect } from 'radix-ui';
+import { Dialog, Slider, Select as RadixSelect } from 'radix-ui';
 import { UIIcon, type UIIconName } from './UIIcon';
 import { useStudio } from '@/lib/studio/store';
 export function IconButton({
@@ -48,70 +48,58 @@ export function Panel({
   onClose,
   wide = false,
   side = false,
+  centered = false,
 }: {
   title: string;
   children: ReactNode;
   onClose: () => void;
   wide?: boolean;
   side?: boolean;
+  centered?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const returnFocus = useRef<HTMLElement | null>(null);
+  const [open, setOpen] = useState(true);
   useEffect(() => {
-    const prev = document.activeElement as HTMLElement | null;
-    const el = ref.current;
-    const focusable = () =>
-      el
-        ? [
-            ...el.querySelectorAll<HTMLElement>(
-              'button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled),summary,a[href],[tabindex="0"]',
-            ),
-          ].filter((element) => element.getClientRects().length > 0 && element.checkVisibility())
-        : [];
-    focusable()[0]?.focus();
-    const key = (e: KeyboardEvent) => {
-      if (
-        e.key === 'Escape' &&
-        !e.defaultPrevented &&
-        !document.querySelector('[data-studio-popup]')
-      ) {
-        onClose();
-        e.stopPropagation();
-      }
-      if (e.key === 'Tab' && el) {
-        const focus = focusable();
-        const first = focus[0],
-          last = focus.at(-1);
-        if (e.shiftKey && document.activeElement === first) {
-          last?.focus();
-          e.preventDefault();
-        } else if (!e.shiftKey && document.activeElement === last) {
-          first?.focus();
-          e.preventDefault();
-        }
-      }
-    };
-    document.addEventListener('keydown', key);
-    return () => {
-      document.removeEventListener('keydown', key);
-      prev?.focus();
-    };
-  }, [onClose]);
+    if (open) return;
+    const timer = setTimeout(onClose, 120);
+    return () => clearTimeout(timer);
+  }, [open, onClose]);
   return (
-    <div
-      className={`panel ${wide ? 'wide' : ''} ${side ? 'side-panel' : ''}`}
-      role="dialog"
-      aria-modal="false"
-      aria-label={title}
-      ref={ref}
-    >
-      <div className="panel-head">
-        <h2>{title}</h2>
-        <IconButton label={`Close ${title}`} onClick={onClose}>
-          <X size={17} />
-        </IconButton>
-      </div>
-      <div className="panel-content">{children}</div>
-    </div>
+    <Dialog.Root open={open} onOpenChange={setOpen} modal={centered}>
+      <Dialog.Portal>
+        {centered && <Dialog.Overlay className="modal-shade panel-shade" />}
+        <Dialog.Content
+          className={`panel ${wide ? 'wide' : ''} ${side ? 'side-panel' : ''}`}
+          data-centered={centered || undefined}
+          aria-label={title}
+          aria-describedby={undefined}
+          ref={ref}
+          onOpenAutoFocus={() => {
+            returnFocus.current =
+              document.activeElement instanceof HTMLElement ? document.activeElement : null;
+          }}
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            if (returnFocus.current?.isConnected) returnFocus.current.focus();
+            else document.querySelector<HTMLButtonElement>('.workspace-menu-trigger')?.focus();
+          }}
+          onEscapeKeyDown={(event) => {
+            if (document.querySelector('[data-studio-popup]')) event.preventDefault();
+          }}
+        >
+          <div className="panel-head">
+            <Dialog.Title asChild>
+              <h2>{title}</h2>
+            </Dialog.Title>
+            <IconButton label={`Close ${title}`} onClick={() => setOpen(false)}>
+              <X size={17} />
+            </IconButton>
+          </div>
+          <div className="panel-content">{children}</div>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }
 export function Field({
@@ -373,12 +361,12 @@ export function Select({
 export function SelectOption({
   value,
   children,
-  icon = 'settings',
+  icon,
   ...props
 }: ComponentProps<typeof RadixSelect.Item> & { icon?: UIIconName }) {
   return (
     <RadixSelect.Item {...props} className="paper-menu-item" value={value || EMPTY_OPTION}>
-      <UIIcon name={icon} />
+      {icon && <UIIcon name={icon} />}
       <RadixSelect.ItemText>{children}</RadixSelect.ItemText>
       <RadixSelect.ItemIndicator className="paper-menu-check">
         <UIIcon name="check" size={14} />

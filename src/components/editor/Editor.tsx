@@ -6,14 +6,12 @@ import { UIIcon } from './UIIcon';
 import { PaperSegmentedControl } from '@/components/ui/paper-segmented-control';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  Camera,
   ChevronDown,
   Plus,
   FolderOpen,
   Undo2,
   Redo2,
   Download,
-  Scan,
   Monitor,
   Film,
   ImagePlus,
@@ -24,7 +22,15 @@ import {
   Square,
   X,
   Focus,
-} from 'lucide-react';
+  CircleCheck,
+  Info,
+  AlertCircle,
+  CloudCheck,
+  CloudUp,
+  CloudOff,
+  Clipboard,
+} from '@/components/ui/studio-icons';
+import { VIDEO_MODE_ENABLED } from '@/lib/studio/features';
 import { useStudio, selectedScene } from '@/lib/studio/store';
 import { runtime } from '@/lib/studio/runtime';
 import {
@@ -37,9 +43,8 @@ import {
   type Project,
   type Scene,
 } from '@/lib/studio/model';
-import { timelineSpans } from '@/lib/studio/evaluate';
+import { outputDimensions, timelineSpans } from '@/lib/studio/evaluate';
 import { composeScene, type Direction } from '@/lib/studio/compose';
-import { createDemo } from '@/lib/studio/demo';
 import {
   listAssets,
   listProjects,
@@ -58,6 +63,7 @@ import Inspector, { type InspectorKind, type MediaTarget } from './Inspector';
 import ShotSidebar from './ShotSidebar';
 import VideoSidebar from './VideoSidebar';
 import Timeline from './Timeline';
+import WorkspaceSettings from './WorkspaceSettings';
 const Stage = dynamic(() => import('./Stage'), {
   ssr: false,
   loading: () => (
@@ -68,8 +74,28 @@ const Stage = dynamic(() => import('./Stage'), {
 });
 const ExportDialog = dynamic(() => import('./ExportDialog'), { ssr: false });
 type PanelName = InspectorKind | 'projects' | 'media' | 'library' | 'compose' | 'help' | null;
+type ToastTone = 'info' | 'success' | 'error';
+type Toast = { text: string; tone: ToastTone };
+type SaveState = 'saved' | 'pending' | 'saving' | 'error';
+const isMac = () => typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
+function relativeTime(time: number) {
+  const seconds = Math.round((Date.now() - time) / 1000);
+  if (seconds < 45) return 'just now';
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return `${minutes} min ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours} h ago`;
+  const days = Math.round(hours / 24);
+  if (days < 7) return days === 1 ? 'yesterday' : `${days} days ago`;
+  return new Date(time).toLocaleDateString();
+}
 let bootstrap: Promise<Project> | undefined;
 async function boot() {
+  if (!localStorage.getItem('studio-clean-workspace-v1')) {
+    const { removeLegacyExamples } = await import('@/lib/storage/legacy-examples');
+    await removeLegacyExamples();
+    localStorage.setItem('studio-clean-workspace-v1', 'done');
+  }
   const projects = await listProjects();
   const last = localStorage.getItem('studio-last-project');
   return projects.find((p) => p.id === last) || projects[0] || makeProject();
@@ -87,13 +113,21 @@ export default function Editor() {
     [exporting, setExporting] = useState(false),
     [quality, setQuality] = useState<'high' | 'draft'>('high'),
     [theme, setTheme] = useState('light'),
-    [saveStatus, setSaveStatus] = useState('Saved'),
-    [message, setMessage] = useState(''),
+    [toast, setToast] = useState<Toast | null>(null),
+    [saveState, setSaveState] = useState<SaveState>('saved'),
     [importStatus, setImportStatus] = useState(''),
     [dragOver, setDragOver] = useState(false),
     [recording, setRecording] = useState(false),
     [recordTime, setRecordTime] = useState(0),
-    [direction, setDirection] = useState<Direction>('macroGlide');
+    [direction, setDirection] = useState<Direction>('macroGlide'),
+    [mod, setMod] = useState('Ctrl'),
+    [confirmDelete, setConfirmDelete] = useState<string | null>(null),
+    [copying, setCopying] = useState(false);
+  const canExport =
+    !!project &&
+    (mode === 'video'
+      ? project.scenes.length > 0
+      : !!project.photo.assetId || project.photo.layers.length > 0);
   const fileInput = useRef<HTMLInputElement>(null),
     photoInput = useRef<HTMLInputElement>(null),
     packageInput = useRef<HTMLInputElement>(null),
@@ -105,8 +139,58 @@ export default function Editor() {
     copyBuffer = useRef<{ kind: 'scene'; value: Scene } | { kind: 'layer'; value: Layer } | null>(
       null,
     );
+  const notify = useCallback((text: string, tone?: ToastTone) => {
+    setToast(text ? { text, tone: tone ?? 'error' } : null);
+  }, []);
+  const persist = useCallback(
+    (p: Project) => {
+      setSaveState('saving');
+      return saveProject(p)
+        .then(() => setSaveState('saved'))
+        .catch((e) => {
+          setSaveState('error');
+          notify(storageError(e));
+        });
+    },
+    [notify],
+  );
+  const copyImage = useCallback(async () => {
+    const p = useStudio.getState().project;
+    if (!p || (!p.photo.assetId && !p.photo.layers.length)) return;
+    if (!navigator.clipboard?.write || typeof ClipboardItem === 'undefined') {
+      notify('This browser cannot copy images. Use Export to download a PNG instead.');
+      return;
+    }
+    setCopying(true);
+    try {
+      const { exportPng } = await import('@/lib/export/render-export');
+      // Hand the clipboard a pending blob so the browser keeps the click's user activation.
+      const png = exportPng(
+        clone(p),
+        0,
+        'photo',
+        {
+          ...outputDimensions(p.output, 2560),
+          fps: 30,
+          format: 'auto',
+          transparent: p.photo.background.kind === 'transparent',
+        },
+        new AbortController().signal,
+      );
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': png })]);
+      notify('Image copied. Paste it anywhere.', 'success');
+    } catch (e) {
+      notify(
+        e instanceof Error && e.name !== 'NotAllowedError'
+          ? e.message
+          : 'The browser did not allow copying. Use Export to download a PNG.',
+      );
+    } finally {
+      setCopying(false);
+    }
+  }, [notify]);
   const closePanel = useCallback(() => setPanel(null), []),
-    error = useCallback((s: string) => setMessage(s), []),
+    error = useCallback((s: string) => notify(s), [notify]),
     closeExport = useCallback(() => setExporting(false), []);
   const pickFocus = useCallback(() => {
     const state = useStudio.getState();
@@ -150,6 +234,7 @@ export default function Editor() {
       storedQuality = localStorage.getItem('studio-quality') === 'draft' ? 'draft' : 'high';
     setTheme(storedTheme);
     setQuality(storedQuality);
+    if (isMac()) setMod('⌘');
     bootstrap ??= boot();
     void bootstrap
       .then((p) => {
@@ -160,7 +245,7 @@ export default function Editor() {
       })
       .catch(async (e) => {
         if (!active) return;
-        setMessage(storageError(e));
+        notify(storageError(e));
         try {
           const p = makeProject();
           if (active) {
@@ -168,13 +253,13 @@ export default function Editor() {
             void refresh();
           }
         } catch (e) {
-          setMessage(e instanceof Error ? e.message : 'Could not open the project.');
+          notify(e instanceof Error ? e.message : 'Could not open the project.');
         }
       });
     return () => {
       active = false;
     };
-  }, [refresh]);
+  }, [refresh, notify]);
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     localStorage.setItem('studio-theme', theme);
@@ -183,54 +268,59 @@ export default function Editor() {
     localStorage.setItem('studio-quality', quality);
   }, [quality]);
   useEffect(() => {
-    if (!message) return;
-    const timeout = setTimeout(() => setMessage(''), 9000);
+    if (!toast) return;
+    const timeout = setTimeout(() => setToast(null), toast.tone === 'error' ? 9000 : 3500);
     return () => clearTimeout(timeout);
-  }, [message]);
+  }, [toast]);
   useEffect(() => {
     if (!project) return;
     // Remember the selected document immediately. A field transaction can replace
     // the debounce timer, so selection must not depend on that timer firing.
     localStorage.setItem('studio-last-project', project.id);
-    setSaveStatus('Saving');
     if (saving.current) clearTimeout(saving.current);
+    setSaveState((current) => (current === 'error' ? current : 'pending'));
     saving.current = setTimeout(() => {
       const p = useStudio.getState().project!;
-      void saveProject(p)
-        .then(() => {
-          setSaveStatus('Saved');
-          if (useStudio.getState().project?.id === p.id)
-            localStorage.setItem('studio-last-project', p.id);
-        })
-        .catch((e) => {
-          setSaveStatus('Unsaved');
-          setMessage(storageError(e));
-        });
+      void persist(p).then(() => {
+        if (useStudio.getState().project?.id === p.id)
+          localStorage.setItem('studio-last-project', p.id);
+      });
     }, 600);
     return () => {
       if (saving.current) clearTimeout(saving.current);
     };
-  }, [project]);
+  }, [project, persist]);
   useEffect(() => {
     const unsub = useStudio.subscribe((s, prev) => {
       if (prev.transaction && !s.transaction && s.project) {
         if (saving.current) clearTimeout(saving.current);
-        saving.current = setTimeout(
-          () =>
-            void saveProject(s.project!)
-              .then(() => setSaveStatus('Saved'))
-              .catch((e) => {
-                setSaveStatus('Unsaved');
-                setMessage(storageError(e));
-              }),
-          600,
-        );
+        saving.current = setTimeout(() => void persist(s.project!), 600);
       }
     });
     return unsub;
-  }, []);
+  }, [persist]);
+  useEffect(() => {
+    // Autosave is debounced; warn before leaving with an unsaved edit or a running export.
+    const leave = (e: BeforeUnloadEvent) => {
+      if (saveState === 'saved' && !exporting) return;
+      e.preventDefault();
+    };
+    window.addEventListener('beforeunload', leave);
+    return () => window.removeEventListener('beforeunload', leave);
+  }, [saveState, exporting]);
   const importFiles = useCallback(
     async (files: File[], purpose: MediaTarget = 'media') => {
+      if (!VIDEO_MODE_ENABLED) {
+        const isVideo = (f: File) =>
+          f.type.startsWith('video/') || /\.(mp4|mov|webm|m4v)$/i.test(f.name);
+        if (files.some(isVideo)) {
+          files = files.filter((f) => !isVideo(f));
+          if (!files.length) {
+            notify('Video is coming soon. For now, import an image or screenshot.', 'info');
+            return;
+          }
+        }
+      }
       if (!files.length) return;
       runtime.set({ playing: false });
       let successful = 0;
@@ -248,6 +338,8 @@ export default function Editor() {
           errors.push(e instanceof Error ? e.message : `Could not import ${files[i].name}`);
         }
       }
+      if (purpose === 'media' && imported.some((a) => a.kind === 'video'))
+        useStudio.getState().setMode('video');
       const s = useStudio.getState();
       if (imported.length) {
         s.edit((p) => {
@@ -280,10 +372,15 @@ export default function Editor() {
               s.selectLayer(layer.id);
             } else errors.push('Choose a PNG or SVG image for a logo.');
           } else if (purpose === 'replace') {
+            if (imported[0].kind === 'video' && s.mode === 'photo') {
+              p.scenes.push(makeScene(imported[0]));
+              return;
+            }
             current!.assetId = imported[0].id;
             current!.name = imported[0].name.replace(/\.[^.]+$/, '');
             current!.kind = 'media';
             current!.trimIn = 0;
+            current!.sourceOffset = 0;
             current!.trimOut = imported[0].duration || 4;
             if (s.mode === 'video') {
               current!.duration =
@@ -301,6 +398,11 @@ export default function Editor() {
             if (s.mode === 'video') p.scenes.push(...imported.map((a) => makeScene(a)));
           }
         });
+        if (purpose === 'replace' && imported[0].kind === 'video' && s.mode === 'photo') {
+          setPanel(null);
+          useStudio.getState().setMode('video');
+          useStudio.getState().selectScene(useStudio.getState().project!.scenes.at(-1)!.id);
+        }
         if (purpose === 'media' && s.mode === 'video') {
           const p = useStudio.getState().project!;
           const id = p.scenes[p.scenes.length - imported.length].id;
@@ -314,18 +416,17 @@ export default function Editor() {
         if (purpose === 'media') setPanel(null);
       }
       setImportStatus('');
-      setMessage(
-        errors.join(' ') || `${successful} ${successful === 1 ? 'file' : 'files'} imported.`,
-      );
+      if (errors.length) notify(errors.join(' '));
+      else notify(`${successful} ${successful === 1 ? 'file' : 'files'} imported.`, 'success');
       await refresh();
     },
-    [refresh],
+    [refresh, notify],
   );
   const chooseFiles = useCallback((purpose: MediaTarget = 'media') => {
     target.current = purpose;
     if (fileInput.current) {
       fileInput.current.accept =
-        purpose === 'logo' || purpose === 'background' ? 'image/*,.svg' : ACCEPT;
+        purpose === 'media' && VIDEO_MODE_ENABLED ? ACCEPT : 'image/*,.svg';
       fileInput.current.click();
     }
   }, []);
@@ -335,7 +436,12 @@ export default function Editor() {
   }, []);
   const addAsset = (a: Asset) => {
     const s = useStudio.getState();
-    if (s.mode === 'photo')
+    if (a.kind === 'video' && !VIDEO_MODE_ENABLED) {
+      notify('Video is coming soon. Choose an image for now.', 'info');
+      return;
+    }
+    if (a.kind === 'video' && s.mode === 'photo') s.setMode('video');
+    if (useStudio.getState().mode === 'photo')
       s.editScene((scene) => {
         scene.assetId = a.id;
         scene.name = a.name.replace(/\.[^.]+$/, '');
@@ -369,6 +475,7 @@ export default function Editor() {
       if (buffer) {
         e.preventDefault();
         const s = useStudio.getState();
+        if (buffer.kind === 'scene' && !VIDEO_MODE_ENABLED) return;
         if (buffer.kind === 'layer') {
           const l = clone(buffer.value);
           l.id = uid();
@@ -388,7 +495,13 @@ export default function Editor() {
       }
     };
     const keydown = (e: KeyboardEvent) => {
-      if (editable(e.target) || exporting) return;
+      if (
+        editable(e.target) ||
+        exporting ||
+        (e.target as Element)?.closest('[role="dialog"]') ||
+        document.querySelector('[data-studio-popup]')
+      )
+        return;
       const s = useStudio.getState(),
         current = selectedScene(s);
       const cmd = e.ctrlKey || e.metaKey;
@@ -397,7 +510,50 @@ export default function Editor() {
         (e.target as Element)?.closest('button,summary,a[href],[role="button"]')
       )
         return;
-      if (cmd && e.key.toLowerCase() === 'z') {
+      const widget = (e.target as Element)?.closest(
+        '[role="slider"],[role="tab"],[role="radio"],[role="menuitem"],[role="option"]',
+      );
+      if (cmd && e.shiftKey && e.key.toLowerCase() === 'c' && s.mode === 'photo') {
+        e.preventDefault();
+        void copyImage();
+      } else if (cmd && e.key.toLowerCase() === 'o') {
+        e.preventDefault();
+        chooseFiles('media');
+      } else if (cmd && e.key.toLowerCase() === 'e') {
+        e.preventDefault();
+        const p = s.project;
+        if (p && (s.mode === 'video' ? p.scenes.length : p.photo.assetId || p.photo.layers.length))
+          setExporting(true);
+      } else if (cmd && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        if (saving.current) clearTimeout(saving.current);
+        if (s.project) void persist(s.project);
+        notify('Saved. Projects also save automatically while you work.', 'success');
+      } else if (!cmd && e.key === '?') {
+        e.preventDefault();
+        setPanel('help');
+      } else if (
+        !cmd &&
+        !widget &&
+        s.mode === 'video' &&
+        s.project?.scenes.length &&
+        ['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)
+      ) {
+        e.preventDefault();
+        const spans = timelineSpans(s.project);
+        const total = spans.at(-1)?.end || 0;
+        const now = runtime.get().time;
+        const step = e.shiftKey ? 1 : 1 / 30;
+        const time =
+          e.key === 'Home'
+            ? 0
+            : e.key === 'End'
+              ? total
+              : Math.max(0, Math.min(total, now + (e.key === 'ArrowRight' ? step : -step)));
+        const active = spans.filter((x) => time >= x.start && time < x.end).at(-1) || spans.at(-1);
+        if (active && active.scene.id !== s.sceneId) s.selectScene(active.scene.id);
+        runtime.set({ time, playing: false });
+      } else if (cmd && e.key.toLowerCase() === 'z') {
         e.preventDefault();
         if (e.shiftKey) s.redo();
         else s.undo();
@@ -435,8 +591,9 @@ export default function Editor() {
             runtime.set({ time: 0, playing: false });
           }
         }
-        setMessage(
+        notify(
           layer ? 'Layer copied. Paste to duplicate.' : 'Scene copied. Paste to duplicate.',
+          'info',
         );
       } else if (current && (e.key === 'Delete' || e.key === 'Backspace')) {
         e.preventDefault();
@@ -465,7 +622,7 @@ export default function Editor() {
       window.removeEventListener('paste', paste);
       window.removeEventListener('keydown', keydown);
     };
-  }, [importFiles, exporting]);
+  }, [importFiles, exporting, notify, persist, chooseFiles, copyImage]);
   useEffect(
     () => () => {
       if (recorder.current?.state === 'recording') recorder.current.stop();
@@ -476,7 +633,7 @@ export default function Editor() {
   );
   const startRecording = async () => {
     if (!navigator.mediaDevices?.getDisplayMedia || typeof MediaRecorder === 'undefined') {
-      setMessage(
+      notify(
         'Screen recording is unavailable in this browser. Use a current desktop browser on localhost or HTTPS, or import a video file.',
       );
       return;
@@ -506,7 +663,7 @@ export default function Editor() {
       };
       rec.onerror = () => {
         failed = true;
-        setMessage('Screen recording failed. Try a different source or import a video.');
+        notify('Screen recording failed. Try a different source or import a video.');
         if (rec.state !== 'inactive') rec.stop();
       };
       rec.onstop = async () => {
@@ -528,14 +685,14 @@ export default function Editor() {
             file,
             (performance.now() - started) / 1000,
           );
-          if (saveError) setMessage(storageError(saveError));
+          if (saveError) notify(storageError(saveError));
           const scene = makeScene(record.meta);
           useStudio.getState().edit((p) => p.scenes.push(scene));
           useStudio.getState().setMode('video');
           useStudio.getState().selectScene(scene.id);
           await refresh();
         } catch (e) {
-          setMessage(e instanceof Error ? e.message : 'Could not import the recording.');
+          notify(e instanceof Error ? e.message : 'Could not import the recording.');
         } finally {
           setImportStatus('');
         }
@@ -555,7 +712,7 @@ export default function Editor() {
       stream.current?.getTracks().forEach((t) => t.stop());
       stream.current = null;
       if (e instanceof Error && e.name !== 'NotAllowedError' && e.name !== 'AbortError')
-        setMessage(e.message);
+        notify(e.message);
     }
   };
   const switchProject = async (id: string) => {
@@ -568,7 +725,7 @@ export default function Editor() {
         setPanel(null);
       }
     } catch (e) {
-      setMessage(storageError(e));
+      notify(storageError(e));
     }
   };
   const newProject = async () => {
@@ -580,7 +737,7 @@ export default function Editor() {
       setPanel(null);
       await refresh();
     } catch (e) {
-      setMessage(storageError(e));
+      notify(storageError(e));
     }
   };
   const duplicateProject = async (p: Project) => {
@@ -594,7 +751,7 @@ export default function Editor() {
       useStudio.getState().load(next);
       await refresh();
     } catch (e) {
-      setMessage(storageError(e));
+      notify(storageError(e));
     }
   };
   const removeProject = async (p: Project) => {
@@ -608,7 +765,7 @@ export default function Editor() {
       await deleteProject(p.id);
       await refresh();
     } catch (e) {
-      setMessage(storageError(e));
+      notify(storageError(e));
     }
   };
   const packageExport = async () => {
@@ -618,7 +775,7 @@ export default function Editor() {
       const { packProject } = await import('@/lib/storage/package');
       download(await packProject(project), `${filename(project.name)}.studio.zip`);
     } catch (e) {
-      setMessage(e instanceof Error ? e.message : 'Could not package the project.');
+      notify(e instanceof Error ? e.message : 'Could not package the project.');
     } finally {
       setImportStatus('');
     }
@@ -637,12 +794,20 @@ export default function Editor() {
       )!;
       runtime.set({ time: span.start, playing: false });
     } else {
-      state.editScene((s) => Object.assign(s, composeScene(s, direction, true)));
+      state.editScene((s) => {
+        const composed = composeScene(s, direction, true);
+        const ratio = s.duration / composed.duration;
+        composed.keyframes.forEach((key) => {
+          key.time *= ratio;
+        });
+        composed.duration = s.duration;
+        Object.assign(s, composed);
+      });
       const span = timelineSpans(state.project!).find((s) => s.scene.id === scene.id)!;
       runtime.set({ time: span.start, playing: false });
     }
     setPanel(null);
-    setMessage('Camera path ready. Edit its positions in the timeline.');
+    notify('Camera path ready. Edit its positions in the timeline.', 'success');
   };
   const titleFor = (v: InspectorKind) =>
     ({
@@ -684,75 +849,188 @@ export default function Editor() {
           void importFiles([...e.dataTransfer.files]);
         }}
       >
+        <section className="desktop-only" aria-labelledby="desktop-only-title">
+          <span className="studio-mark" aria-hidden="true">
+            <Focus size={22} />
+          </span>
+          <h1 id="desktop-only-title">Please open Studio on a desktop</h1>
+          <p>
+            Studio is built for a larger screen, a mouse and a keyboard. Visit this page on your
+            computer to edit your images.
+          </p>
+          <button
+            className="primary"
+            onClick={() => {
+              void navigator.clipboard
+                ?.writeText(window.location.href)
+                .then(() => notify('Link copied. Open it on your computer.', 'success'))
+                .catch(() => notify(window.location.href, 'info'));
+            }}
+          >
+            <Copy size={16} /> Copy link
+          </button>
+        </section>
         <header className="topbar">
           <div className="topbar-left">
-            <button
-              className="studio-mark"
-              title="Interface Studio help"
-              aria-label="Interface Studio help"
-              onClick={() => setPanel('help')}
-            >
-              <Camera size={20} />
-            </button>
-            <span className="studio-wordmark">Studio</span>
+            <span className="studio-brand" aria-label="Interface Studio">
+              <span className="studio-mark" aria-hidden="true">
+                <Focus size={15} />
+              </span>
+              <span className="studio-wordmark">Studio</span>
+            </span>
             <span className="top-divider" />
             <button
               className={`project-trigger ${panel === 'projects' ? 'selected' : ''}`}
               aria-label="Projects"
+              title="All projects"
               aria-expanded={panel === 'projects'}
               onClick={() => {
                 void refresh();
                 setPanel(panel === 'projects' ? null : 'projects');
               }}
             >
-              <span>{project?.name || 'Opening project'}</span>
-              <ChevronDown size={13} />
+              <FolderOpen size={15} />
+              <ChevronDown size={12} />
             </button>
-          </div>
-          <PaperSegmentedControl
-            className="workspace-mode"
-            aria-label="Studio mode"
-            value={mode}
-            onValueChange={(value) => {
-              if (value === 'photo' || value === 'video') {
-                setPanel(null);
-                useStudio.getState().setMode(value);
-              }
-            }}
-            options={[
-              { value: 'photo', label: 'Photo', 'aria-label': 'PHOTO' },
-              { value: 'video', label: 'Video', 'aria-label': 'VIDEO' },
-            ]}
-          />
-          <div className="topbar-right">
-            {mode === 'photo' ? (
-              <button
-                className="secondary upload-photo-button"
-                aria-label="Upload photo"
-                disabled={!project || !!importStatus}
-                onClick={choosePhoto}
-              >
-                <ImagePlus size={16} />
-                <span>Upload photo</span>
-              </button>
+            {project ? (
+              <input
+                className="project-name-input"
+                aria-label="Project name"
+                title="Rename project"
+                value={project.name}
+                size={Math.max(6, Math.min(32, project.name.length + 1))}
+                spellCheck={false}
+                onFocus={(e) => {
+                  useStudio.getState().begin();
+                  e.currentTarget.select();
+                }}
+                onBlur={() => {
+                  const s = useStudio.getState();
+                  if (!s.project?.name.trim())
+                    s.edit((p) => {
+                      p.name = 'Untitled project';
+                    });
+                  s.commit();
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === 'Escape') e.currentTarget.blur();
+                }}
+                onChange={(e) =>
+                  useStudio.getState().edit((p) => {
+                    p.name = e.target.value;
+                  })
+                }
+              />
             ) : (
-              <button
-                className="secondary add-media-button"
-                aria-label="Import media"
-                disabled={!project}
-                onClick={() => chooseFiles('media')}
-              >
-                <Plus size={16} />
-                <span>Import media</span>
-              </button>
+              <span className="project-name-placeholder">Opening project</span>
             )}
+            {project && (
+              <span
+                className="save-indicator"
+                data-state={saveState}
+                role="status"
+                title={
+                  saveState === 'error'
+                    ? 'Could not save to this browser. Download a project package as a backup.'
+                    : 'Projects save automatically in this browser.'
+                }
+              >
+                {saveState === 'error' ? (
+                  <CloudOff size={15} />
+                ) : saveState === 'saved' ? (
+                  <CloudCheck size={15} />
+                ) : (
+                  <CloudUp size={15} />
+                )}
+                <span>
+                  {saveState === 'error'
+                    ? 'Not saved'
+                    : saveState === 'saved'
+                      ? 'Saved'
+                      : 'Saving…'}
+                </span>
+              </span>
+            )}
+          </div>
+          {VIDEO_MODE_ENABLED ? (
+            <PaperSegmentedControl
+              className="workspace-mode"
+              aria-label="Studio mode"
+              value={mode}
+              onValueChange={(value) => {
+                if (value === 'photo' || value === 'video') {
+                  setPanel(null);
+                  useStudio.getState().setMode(value);
+                }
+              }}
+              options={[
+                { value: 'photo', label: 'Photo', 'aria-label': 'PHOTO' },
+                { value: 'video', label: 'Video', 'aria-label': 'VIDEO' },
+              ]}
+            />
+          ) : (
+            <div className="mode-switch" role="group" aria-label="Studio mode">
+              <button className="mode-option" aria-pressed="true">
+                Photo
+              </button>
+              <span
+                className="mode-option mode-soon"
+                role="button"
+                tabIndex={0}
+                aria-disabled="true"
+                aria-describedby="video-soon-tip"
+              >
+                Video
+                <span className="soon-badge">Soon</span>
+                <span role="tooltip" id="video-soon-tip" className="soon-tip">
+                  <b>Video is coming soon</b>
+                  Animated camera moves and clips are being rebuilt.
+                </span>
+              </span>
+            </div>
+          )}
+          <div className="topbar-right">
+            <div className="history-tools">
+              <IconButton
+                label={`Undo · ${mod} Z`}
+                disabled={!canUndo}
+                onClick={() => useStudio.getState().undo()}
+              >
+                <Undo2 size={17} />
+              </IconButton>
+              <IconButton
+                label={`Redo · ${mod} Shift Z`}
+                disabled={!canRedo}
+                onClick={() => useStudio.getState().redo()}
+              >
+                <Redo2 size={17} />
+              </IconButton>
+            </div>
+            <span className="top-divider" />
+            <button
+              className="header-import"
+              aria-label="Import media"
+              title={`Import an image · ${mod} O`}
+              disabled={!project || !!importStatus}
+              onClick={() => chooseFiles('media')}
+            >
+              <Plus size={16} />
+              <span>Import</span>
+            </button>
+            <button
+              className="header-import header-copy"
+              aria-label="Copy image"
+              title={`Copy image to clipboard · ${mod} Shift C`}
+              disabled={!canExport || copying}
+              onClick={() => void copyImage()}
+            >
+              {copying ? <span className="spinner" /> : <Clipboard size={16} />}
+              <span>Copy</span>
+            </button>
             <button
               className="export-button"
-              disabled={
-                !project ||
-                (mode === 'video' && !project.scenes.length) ||
-                (mode === 'photo' && !project.photo.assetId && !project.photo.layers.length)
-              }
+              disabled={!canExport}
+              title={`Export · ${mod} E`}
               onClick={() => setExporting(true)}
             >
               <Download size={15} />
@@ -778,32 +1056,29 @@ export default function Editor() {
                 >
                   <DropdownMenu.Item
                     className="paper-menu-item"
-                    title="Preview quality. Export always uses full resolution."
-                    onSelect={() => setQuality(quality === 'high' ? 'draft' : 'high')}
+                    onSelect={() => {
+                      void refresh();
+                      setPanel('library');
+                    }}
                   >
-                    <UIIcon name="settings" />
-                    <span>Preview quality</span>
-                    <small>{quality === 'high' ? 'High' : 'Draft'}</small>
+                    <span>Media library</span>
                   </DropdownMenu.Item>
-                  <DropdownMenu.Item
-                    className="paper-menu-item"
-                    aria-label={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
-                    onSelect={() => setTheme(theme === 'light' ? 'dark' : 'light')}
-                  >
-                    <UIIcon name="settings" />
-                    <span>{theme === 'light' ? 'Dark appearance' : 'Light appearance'}</span>
-                  </DropdownMenu.Item>
-                  <DropdownMenu.Separator className="paper-menu-separator" />
                   <DropdownMenu.Item
                     className="paper-menu-item"
                     onSelect={() => setPanel('settings')}
                   >
-                    <UIIcon name="settings" />
                     <span>Settings</span>
                   </DropdownMenu.Item>
+                  <DropdownMenu.Item
+                    className="paper-menu-item"
+                    onSelect={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                  >
+                    <span>{theme === 'dark' ? 'Light appearance' : 'Dark appearance'}</span>
+                  </DropdownMenu.Item>
+                  <DropdownMenu.Separator className="paper-menu-separator" />
                   <DropdownMenu.Item className="paper-menu-item" onSelect={() => setPanel('help')}>
-                    <UIIcon name="help" />
-                    Help and shortcuts
+                    <span>Help and shortcuts</span>
+                    <kbd className="menu-shortcut">?</kbd>
                   </DropdownMenu.Item>
                 </DropdownMenu.Content>
               </DropdownMenu.Portal>
@@ -812,45 +1087,6 @@ export default function Editor() {
         </header>
         <div className="workspace">
           <section className="preview-column" aria-label="Preview workspace">
-            <div className="workspace-toolbar">
-              <button
-                className="text-button library-button"
-                onClick={() => {
-                  void refresh();
-                  setPanel(panel === 'library' ? null : 'library');
-                }}
-              >
-                <FolderOpen size={15} />
-                Library
-              </button>
-              {mode === 'photo' && (
-                <button
-                  className={`text-button compose-button ${panel === 'compose' ? 'active' : ''}`}
-                  aria-label="Compose"
-                  disabled={!scene?.assetId}
-                  onClick={() => setPanel(panel === 'compose' ? null : 'compose')}
-                >
-                  <Film size={15} />
-                  <span>Animate camera</span>
-                </button>
-              )}
-              <div className="history-tools">
-                <IconButton
-                  label="Undo · Ctrl Z"
-                  disabled={!canUndo}
-                  onClick={() => useStudio.getState().undo()}
-                >
-                  <Undo2 size={16} />
-                </IconButton>
-                <IconButton
-                  label="Redo · Ctrl Shift Z"
-                  disabled={!canRedo}
-                  onClick={() => useStudio.getState().redo()}
-                >
-                  <Redo2 size={16} />
-                </IconButton>
-              </div>
-            </div>
             {project &&
             (mode === 'video'
               ? !project.scenes.length
@@ -868,14 +1104,64 @@ export default function Editor() {
                       ? 'Bring in a video or image to create your first scene.'
                       : 'Upload a photo or screenshot to get started.'}
                   </p>
-                  <button
-                    className="primary"
-                    onClick={mode === 'video' ? () => chooseFiles('media') : choosePhoto}
-                  >
-                    <Upload size={16} />
-                    {mode === 'video' ? 'Import media' : 'Upload photo'}
-                  </button>
-                  <small>Or drag a file into this workspace</small>
+                  <div className="empty-stage-actions">
+                    <button
+                      className="primary"
+                      onClick={mode === 'video' ? () => chooseFiles('media') : choosePhoto}
+                    >
+                      <Upload size={16} />
+                      {mode === 'video' ? 'Import media' : 'Upload photo'}
+                    </button>
+                    {mode === 'video' && (
+                      <button className="secondary" onClick={() => void startRecording()}>
+                        <Monitor size={16} /> Record screen
+                      </button>
+                    )}
+                  </div>
+                  <ul className="empty-stage-hints" aria-label="Other ways to add media">
+                    <li>
+                      <kbd>Drag</kbd> files anywhere
+                    </li>
+                    <li>
+                      <kbd>{mod} V</kbd> paste a screenshot
+                    </li>
+                    <li>
+                      <kbd>{mod} O</kbd> open files
+                    </li>
+                  </ul>
+                  <small className="empty-stage-formats">
+                    {mode === 'video'
+                      ? 'MP4, MOV, WebM and images'
+                      : 'PNG, JPG, WebP, AVIF, GIF and SVG'}
+                  </small>
+                  {(() => {
+                    const recent = assets
+                      .filter((a) => mode === 'video' || a.kind === 'image')
+                      .slice(0, 6);
+                    return recent.length ? (
+                      <div className="empty-stage-recent">
+                        <div className="section-label">Recent media</div>
+                        <div className="empty-stage-recent-grid">
+                          {recent.map((a) => (
+                            <button
+                              key={a.id}
+                              className="empty-stage-recent-item"
+                              aria-label={`Use ${a.name}`}
+                              title={a.name}
+                              onClick={() => addAsset(a)}
+                            >
+                              <img src={a.thumbnail} alt="" />
+                              {a.kind === 'video' && (
+                                <span className="asset-kind">
+                                  <Film size={11} />
+                                </span>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null;
+                  })()}
                 </div>
               </section>
             ) : project ? (
@@ -927,24 +1213,11 @@ export default function Editor() {
             />
           )}
         </div>
-        <footer className="studio-footer">
-          <span>
-            <span className={`save-dot ${saveStatus === 'Unsaved' ? 'unsaved' : ''}`} />
-            {saveStatus}
-            <span className="footer-separator">/</span>Stored on this device
-          </span>
-          <span>
-            {mode === 'video'
-              ? 'Space to play · Ctrl Z to undo'
-              : 'Drag to move. Ctrl + drag to rotate.'}
-          </span>
-        </footer>
-
         <input
           ref={fileInput}
           className="visually-hidden"
           type="file"
-          accept={ACCEPT}
+          accept={VIDEO_MODE_ENABLED ? ACCEPT : 'image/*,.svg'}
           multiple
           onChange={(e) => {
             void importFiles([...(e.target.files || [])], target.current);
@@ -982,18 +1255,16 @@ export default function Editor() {
               useStudio.getState().load(p);
               await refresh();
               setPanel(null);
-              setMessage('Project and referenced media imported.');
+              notify('Project and referenced media imported.', 'success');
             } catch (e) {
-              setMessage(
-                e instanceof Error ? e.message : 'This project package could not be read.',
-              );
+              notify(e instanceof Error ? e.message : 'This project package could not be read.');
             } finally {
               setImportStatus('');
             }
           }}
         />
         {panel === 'projects' && (
-          <Panel title="Your projects" onClose={closePanel} side>
+          <Panel title="Projects" onClose={closePanel} centered wide>
             <Field label="Project name">
               <input
                 value={project?.name || ''}
@@ -1005,68 +1276,117 @@ export default function Editor() {
               />
             </Field>
             <div className="project-list">
-              {projects.map((p) => (
-                <div key={p.id} className={p.id === project?.id ? 'current' : ''}>
-                  <button onClick={() => void switchProject(p.id)}>
-                    <Camera size={17} />
-                    <span>
-                      <b>{p.id === project?.id ? project.name : p.name}</b>
-                      <small>
-                        {new Date(p.updatedAt).toLocaleDateString()} · {p.scenes.length} scenes
-                      </small>
-                    </span>
-                    {p.id === project?.id && <Check size={14} />}
-                  </button>
-                  <IconButton
-                    label={`Duplicate ${p.name}`}
-                    onClick={() => void duplicateProject(p)}
-                  >
-                    <Copy size={14} />
-                  </IconButton>
-                  <IconButton label={`Delete ${p.name}`} onClick={() => void removeProject(p)}>
-                    <Trash2 size={14} />
-                  </IconButton>
-                </div>
-              ))}
+              {[...projects]
+                .sort((a, b) => (b.id === project?.id ? 1 : 0) - (a.id === project?.id ? 1 : 0))
+                .map((p) => {
+                  const current = p.id === project?.id;
+                  const doc = current ? project : p;
+                  const thumb = assets.find(
+                    (a) => a.id === (doc.photo.assetId || doc.scenes[0]?.assetId),
+                  )?.thumbnail;
+                  const parts = [
+                    doc.photo.assetId ? 'Photo' : '',
+                    doc.scenes.length
+                      ? `${doc.scenes.length} ${doc.scenes.length === 1 ? 'clip' : 'clips'}`
+                      : '',
+                  ].filter(Boolean);
+                  return (
+                    <div key={p.id} className={current ? 'current' : ''}>
+                      <button onClick={() => void switchProject(p.id)} aria-current={current}>
+                        <span className="project-thumb" aria-hidden="true">
+                          {thumb ? <img src={thumb} alt="" /> : <ImagePlus size={16} />}
+                        </span>
+                        <span>
+                          <b>{doc.name || 'Untitled project'}</b>
+                          <small>
+                            {current ? 'Open now' : `Edited ${relativeTime(doc.updatedAt)}`}
+                            {' · '}
+                            {parts.join(' · ') || 'Empty'}
+                          </small>
+                        </span>
+                        {current && <Check size={14} />}
+                      </button>
+                      {confirmDelete === p.id ? (
+                        <div className="project-confirm" role="group" aria-label="Confirm delete">
+                          <button
+                            className="danger-button"
+                            onClick={() => {
+                              setConfirmDelete(null);
+                              void removeProject(p);
+                            }}
+                          >
+                            Delete
+                          </button>
+                          <button className="text-button" onClick={() => setConfirmDelete(null)}>
+                            Keep
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <IconButton
+                            label={`Duplicate ${p.name}`}
+                            onClick={() => void duplicateProject(p)}
+                          >
+                            <Copy size={14} />
+                          </IconButton>
+                          <IconButton
+                            label={`Delete ${p.name}`}
+                            onClick={() => setConfirmDelete(p.id)}
+                          >
+                            <Trash2 size={14} />
+                          </IconButton>
+                        </>
+                      )}
+                    </div>
+                  );
+                })}
             </div>
             <button className="secondary full" onClick={() => void newProject()}>
               <Plus size={15} /> New project
             </button>
-            <div className="section-label">PORTABLE PROJECT</div>
+            <div className="section-label">Project files</div>
             <button className="text-button full" onClick={() => void packageExport()}>
               <Download size={15} /> Download project package
             </button>
             <button className="text-button full" onClick={() => packageInput.current?.click()}>
               <Upload size={15} /> Open project package
             </button>
-            <p className="panel-note">
-              Packages include the document and original media. No account or cloud needed.
-            </p>
           </Panel>
         )}
         {(panel === 'media' || panel === 'library') && (
           <Panel
             title={panel === 'media' ? 'Add media' : 'Media library'}
             onClose={closePanel}
-            side
+            centered
             wide
           >
             <div className="media-import-actions">
               <button className="secondary" onClick={() => chooseFiles()}>
                 <Upload size={16} /> Import files
               </button>
-              <button className="secondary" onClick={() => void startRecording()}>
-                <Monitor size={16} /> Record screen
-              </button>
+              {VIDEO_MODE_ENABLED && (
+                <button className="secondary" onClick={() => void startRecording()}>
+                  <Monitor size={16} /> Record screen
+                </button>
+              )}
             </div>
             <p className="panel-note">
-              PNG, JPG, WEBP, AVIF, GIF, SVG · MP4, MOV, WEBM
+              PNG, JPG, WEBP, AVIF, GIF, SVG{VIDEO_MODE_ENABLED ? ' · MP4, MOV, WEBM' : ''}
               <br />
               Drop files anywhere, or paste an image.
             </p>
-            <div className="section-label">
-              {panel === 'library' ? 'SAVED MEDIA' : 'YOUR ASSETS'} <span>{assets.length}</span>
-            </div>
+            {!assets.length && (
+              <div className="library-empty">
+                <ImagePlus size={28} />
+                <h3>Your media, all in one place</h3>
+                <p>Import images or videos to use in any project.</p>
+              </div>
+            )}
+            {!!assets.length && (
+              <div className="section-label">
+                {assets.length} {assets.length === 1 ? 'file' : 'files'}
+              </div>
+            )}
             <div className="media-grid">
               {assets.map((a) => (
                 <article className="asset-card" key={a.id}>
@@ -1089,7 +1409,6 @@ export default function Editor() {
                       {a.width} × {a.height}
                       {a.kind === 'video' ? ` · ${a.duration.toFixed(1)}s` : ''}
                     </small>
-                    <small>{new Date(a.createdAt).toLocaleDateString()}</small>
                     {a.note && <small className="asset-note">{a.note}</small>}
                     <div className="asset-actions">
                       <button
@@ -1099,7 +1418,7 @@ export default function Editor() {
                             const r = await resolveAsset(a.id);
                             download(r.blob, mediaFilename(r));
                           } catch (e) {
-                            setMessage(
+                            notify(
                               e instanceof Error ? e.message : 'Could not download this file.',
                             );
                           }
@@ -1122,9 +1441,7 @@ export default function Editor() {
                             forgetAsset(a.id);
                             await refresh();
                           } catch (e) {
-                            setMessage(
-                              e instanceof Error ? e.message : 'Could not delete the media.',
-                            );
+                            notify(e instanceof Error ? e.message : 'Could not delete the media.');
                           }
                         }}
                       >
@@ -1138,32 +1455,28 @@ export default function Editor() {
           </Panel>
         )}
         {panel === 'compose' && (
-          <Panel title="Compose a camera path" onClose={closePanel}>
+          <Panel title="Camera motion" onClose={closePanel} centered wide>
             <p className="panel-note compose-intro">
-              Smooth four to six second camera paths, built locally from your surface and marked
-              details.
+              Choose a movement. Every position stays editable in the timeline.
             </p>
             <div className="direction-list">
               {(
                 [
                   {
                     value: 'macroGlide',
-                    label: 'Macro Glide',
+                    label: 'Macro glide',
                     detail:
                       'Travel slowly across a close crop, with a subtle change in perspective.',
-                    icon: Film,
                   },
                   {
                     value: 'focusPull',
-                    label: 'Focus Pull',
+                    label: 'Focus pull',
                     detail: 'Hold the camera steady and shift focus between two image details.',
-                    icon: Focus,
                   },
                   {
                     value: 'hero',
-                    label: 'Hero Reveal',
+                    label: 'Hero reveal',
                     detail: 'Open from a close detail into a complete, floating product view.',
-                    icon: Scan,
                   },
                 ] as const
               ).map((d) => (
@@ -1174,7 +1487,9 @@ export default function Editor() {
                   aria-pressed={direction === d.value}
                   onClick={() => setDirection(d.value)}
                 >
-                  <d.icon size={23} />
+                  <span className={`motion-demo motion-${d.value}`} aria-hidden="true">
+                    <i />
+                  </span>
                   <span>
                     <b>{d.label}</b>
                     <small>{d.detail}</small>
@@ -1183,10 +1498,10 @@ export default function Editor() {
                 </button>
               ))}
             </div>
-            <p className="panel-note">
+            <p className="panel-note motion-focus-note">
               {scene?.points.length
-                ? `${scene.points.length} marked ${scene.points.length === 1 ? 'detail' : 'details'}. ${direction === 'focusPull' ? 'The first two details guide the focus; a missing second mark uses the opposite side.' : 'The first detail guides the focus.'}`
-                : 'Use the mark tool beside the canvas to choose image details. Your current manual focus is used when no detail is marked; Focus Pull adds a second point on the opposite side.'}
+                ? `${scene.points.length} marked ${scene.points.length === 1 ? 'detail' : 'details'} will guide the focus.`
+                : 'Uses your current focus point.'}
             </p>
             {!!scene?.points.length && (
               <button
@@ -1201,12 +1516,8 @@ export default function Editor() {
               </button>
             )}
             <button className="compose-primary full" onClick={compose}>
-              <Focus size={16} />{' '}
-              {mode === 'photo' ? 'Create motion scene' : 'Compose new variation'}
+              <Focus size={16} /> {mode === 'photo' ? 'Create video clip' : 'Apply camera motion'}
             </button>
-            <p className="panel-note">
-              Generated positions remain editable in the timeline. Undo restores the previous path.
-            </p>
           </Panel>
         )}
         {panel &&
@@ -1218,13 +1529,17 @@ export default function Editor() {
             'fov',
             'camera',
             'rotation',
-            'settings',
             'frame',
             'shadow',
             'aspect',
             'inspector',
           ].includes(panel) && (
-            <Panel title={titleFor(panel as InspectorKind)} onClose={closePanel}>
+            <Panel
+              title={titleFor(panel as InspectorKind)}
+              onClose={closePanel}
+              centered={panel === 'inspector'}
+              wide={panel === 'inspector'}
+            >
               <Inspector
                 kind={panel as InspectorKind}
                 assets={assets}
@@ -1234,57 +1549,60 @@ export default function Editor() {
             </Panel>
           )}
         {panel === 'help' && (
-          <Panel title="Using the studio" onClose={closePanel}>
+          <Panel title="Help & shortcuts" onClose={closePanel} centered>
             <p className="panel-note">
-              Bring in a screenshot, find an angle, and take a photo. Switch to Video to tell a
-              longer story.
+              Import media, frame it on the canvas, and refine it in Properties.
             </p>
             <ol className="help-steps">
-              <li>Import or choose a demo from Add media.</li>
-              <li>Choose a look, or adjust your angle in Camera.</li>
-              <li>Select MF and click your subject to focus.</li>
-              <li>Compose a camera path, or add keyframes yourself.</li>
-              <li>Export a full-resolution PNG or silent video.</li>
+              <li>Import, drop or paste an image or screenshot.</li>
+              <li>Pick a background preset or gradient, then set the angle and zoom.</li>
+              <li>Round the corners, adjust the shadow and add text or a logo.</li>
+              <li>Choose Manual focus and click your subject for depth blur.</li>
+              <li>Copy the result to the clipboard or export a full-resolution PNG.</li>
             </ol>
-            <div className="section-label">SHORTCUTS</div>
+            <div className="section-label">Shortcuts</div>
             <dl className="shortcuts">
               {[
-                ['Undo', 'Ctrl Z'],
-                ['Redo', 'Ctrl Shift Z'],
-                ['Copy / cut / paste', 'Ctrl C / X / V'],
+                ['Import media', `${mod} O`],
+                ['Export', `${mod} E`],
+                ['Save now', `${mod} S`],
+                ['Undo', `${mod} Z`],
+                ['Redo', `${mod} Shift Z`],
+                ['Copy / cut / paste', `${mod} C / X / V`],
                 ['Delete selection', 'Delete'],
                 ['Play / pause', 'Space'],
-                ['Timeline beginning', 'Enter'],
-                ['Rotate on canvas', 'Ctrl + drag'],
-                ['Zoom on canvas', 'Ctrl + scroll'],
+                ['Step one frame', '← / →'],
+                ['Step one second', 'Shift ← / →'],
+                ['Timeline start / end', 'Home / End'],
+                ['Split clip', `${mod} B`],
+                ['Zoom timeline', `${mod} + scroll`],
+                ['Rotate on canvas', `${mod} + drag`],
+                ['Zoom on canvas', `${mod} + scroll`],
+                ['Show shortcuts', '?'],
                 ['Close panel', 'Esc'],
               ].map(([a, b]) => (
                 <div key={a}>
                   <dt>{a}</dt>
-                  <dd>{b}</dd>
+                  <dd>
+                    <kbd>{b}</kbd>
+                  </dd>
                 </div>
               ))}
             </dl>
-            <button
-              className="secondary full"
-              onClick={async () => {
-                try {
-                  if (project) await saveProject(project);
-                  const p = await createDemo();
-                  useStudio.getState().load(p);
-                  await refresh();
-                  setPanel(null);
-                } catch (e) {
-                  setMessage(storageError(e));
-                }
-              }}
-            >
-              <Camera size={15} /> Open a fresh example project
-            </button>
-            <p className="panel-note">
-              Everything stays in this browser. Keep a project package as a portable backup. Video
-              support depends on the browser and source codec.
-            </p>
+            <p className="panel-note">Download a project package to keep an editable backup.</p>
+          </Panel>
+        )}
+        {panel === 'settings' && (
+          <Panel title="Settings" onClose={closePanel} centered wide>
+            <WorkspaceSettings
+              theme={theme}
+              onTheme={setTheme}
+              quality={quality}
+              onQuality={setQuality}
+              assets={assets}
+              onImport={chooseFiles}
+              onPickFocus={pickFocus}
+            />
           </Panel>
         )}
         {recording && (
@@ -1302,10 +1620,24 @@ export default function Editor() {
             {importStatus}
           </div>
         )}
-        {message && (
-          <div className="toast" role="status">
-            <span>{message}</span>
-            <IconButton label="Dismiss message" onClick={() => setMessage('')}>
+        {toast && (
+          <div
+            key={toast.text}
+            className="toast"
+            data-tone={toast.tone}
+            role={toast.tone === 'error' ? 'alert' : 'status'}
+          >
+            <span className="toast-icon" aria-hidden="true">
+              {toast.tone === 'error' ? (
+                <AlertCircle size={16} />
+              ) : toast.tone === 'success' ? (
+                <CircleCheck size={16} />
+              ) : (
+                <Info size={16} />
+              )}
+            </span>
+            <span>{toast.text}</span>
+            <IconButton label="Dismiss message" onClick={() => setToast(null)}>
               <X size={14} />
             </IconButton>
           </div>
