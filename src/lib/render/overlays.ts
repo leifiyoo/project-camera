@@ -19,7 +19,7 @@ function wrap(ctx: Ctx, text: string, maxWidth: number) {
 }
 function text(ctx: Ctx, l: TextLayer, time: number, w: number, h: number) {
   if (time < l.start || time > l.end) return;
-  const p = clamp((time - l.start) / Math.max(0.01, l.duration), 0, 1);
+  const p = clamp((time - l.start + (l.animationOffset ?? 0)) / Math.max(0.01, l.duration), 0, 1);
   const smooth = 1 - (1 - p) ** 3;
   let content = l.text;
   if (l.animation === 'typewriter') content = content.slice(0, Math.ceil(content.length * p));

@@ -9,8 +9,11 @@ import './globals.css';
 import './sidebar.css';
 import './controls.css';
 import './video.css';
+import './studio.css';
+import './whirl.css';
+import './polish.css';
 const inter = localFont({
-  src: '../../node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2',
+  src: '../../public/fonts/InterVariable.woff2',
   variable: '--font-studio',
   display: 'swap',
   weight: '100 900',

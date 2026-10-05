@@ -1,14 +1,6 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
-import {
-  Download,
-  Image as ImageIcon,
-  Film,
-  X,
-  Check,
-  FolderCheck,
-  AlertCircle,
-} from 'lucide-react';
+import { Download, X, Check, AlertCircle } from '@/components/ui/studio-icons';
 import { useStudio } from '@/lib/studio/store';
 import { runtime } from '@/lib/studio/runtime';
 import { outputDimensions, totalDuration } from '@/lib/studio/evaluate';
@@ -17,6 +9,7 @@ import { download, filename } from '@/lib/export/download';
 import type { ExportSettings, Support } from '@/lib/export/render-export';
 import { importMedia } from '@/lib/media/import';
 import { Field, NumberField, Select, SelectOption } from './primitives';
+import { PaperSegmentedControl } from '@/components/ui/paper-segmented-control';
 export default function ExportDialog({
   onClose,
   onSaved,
@@ -39,11 +32,63 @@ export default function ExportDialog({
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState('');
   const [result, setResult] = useState<{ blob: Blob; name: string; url: string } | null>(null);
+  const [preview, setPreview] = useState('');
+  const [previewLoading, setPreviewLoading] = useState(true);
+  const [closing, setClosing] = useState(false);
+  useEffect(() => {
+    if (!closing) return;
+    const timer = setTimeout(onClose, 120);
+    return () => clearTimeout(timer);
+  }, [closing, onClose]);
   const abort = useRef<AbortController | null>(null);
   const closeButton = useRef<HTMLButtonElement>(null);
   const dialog = useRef<HTMLDivElement>(null);
   const dimensions = outputDimensions(project.output, longEdge, type === 'video');
   const settings: ExportSettings = { ...dimensions, fps, format, transparent };
+  useEffect(() => {
+    setResult(null);
+  }, [type, longEdge, fps, format, transparent, saveLibrary]);
+  useEffect(() => {
+    const controller = new AbortController();
+    const snapshot = clone(project);
+    const time = runtime.get().time;
+    let previewUrl = '';
+    setPreview('');
+    setPreviewLoading(true);
+    runtime.set({ playing: false });
+    // A dedicated frame avoids reading the stage while its async renderer is mid-frame.
+    void import('@/lib/export/render-export')
+      .then((exporter) =>
+        exporter.exportPng(
+          snapshot,
+          time,
+          mode,
+          {
+            ...outputDimensions(snapshot.output, 640, false),
+            fps: 30,
+            format: 'auto',
+            transparent: false,
+          },
+          controller.signal,
+        ),
+      )
+      .then((blob) => {
+        if (controller.signal.aborted) return;
+        previewUrl = URL.createObjectURL(blob);
+        setPreview(previewUrl);
+      })
+      .catch((cause) => {
+        if (!controller.signal.aborted)
+          setError(cause instanceof Error ? cause.message : 'Could not render the preview.');
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setPreviewLoading(false);
+      });
+    return () => {
+      controller.abort();
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [project, mode]);
   useEffect(() => {
     if (type !== 'video') return;
     let stale = false;
@@ -74,7 +119,7 @@ export default function ExportDialog({
     closeButton.current?.focus();
     const key = (e: KeyboardEvent) => {
       if (e.defaultPrevented || document.querySelector('[data-studio-popup]')) return;
-      if (e.key === 'Escape' && !abort.current) onClose();
+      if (e.key === 'Escape' && !abort.current) setClosing(true);
       if (e.key !== 'Tab') return;
       const controls = Array.from(
         dialog.current?.querySelectorAll<HTMLElement>(
@@ -162,219 +207,232 @@ export default function ExportDialog({
   return (
     <div
       className="modal-shade"
+      data-closing={closing || undefined}
       onPointerDown={(e) => {
-        if (e.target === e.currentTarget && !busy) onClose();
+        if (e.target === e.currentTarget && !busy) setClosing(true);
       }}
     >
       <div
         ref={dialog}
         className="export-dialog"
+        data-closing={closing || undefined}
         role="dialog"
         aria-modal="true"
         aria-labelledby="export-title"
       >
         <div className="panel-head">
           <div>
-            <h2 id="export-title">Ready for its close-up.</h2>
-            <p>Your composition, at full resolution.</p>
+            <h2 id="export-title">Export</h2>
+            <p>{project.name}</p>
           </div>
           <button
             className="icon-button"
             ref={closeButton}
             aria-label="Close export"
             disabled={busy}
-            onClick={onClose}
+            onClick={() => setClosing(true)}
           >
             <X size={18} />
           </button>
         </div>
         <div className="export-body">
-          <div className="export-types">
-            <button
-              disabled={busy}
-              className={type === 'png' ? 'selected' : ''}
-              onClick={() => {
-                setType('png');
-                setResult(null);
-              }}
+          <div className="export-preview-column">
+            <div
+              className="export-preview"
+              aria-busy={busy || previewLoading}
+              style={{ aspectRatio: `${project.output.width}/${project.output.height}` }}
             >
-              <ImageIcon size={20} />
+              {result ? (
+                type === 'png' ? (
+                  <img src={result.url} alt="Exported composition" />
+                ) : (
+                  <video src={result.url} controls playsInline />
+                )
+              ) : preview ? (
+                <img src={preview} alt="Composition preview" />
+              ) : previewLoading ? (
+                <div className="export-preview-progress">
+                  <span className="spinner" />
+                  <strong>Preparing preview…</strong>
+                </div>
+              ) : (
+                <span>Preview</span>
+              )}
+              {busy && (
+                <div className="export-preview-progress">
+                  <span className="spinner" />
+                  <strong>
+                    {type === 'png' ? 'Rendering…' : `${Math.round(progress * 100)}%`}
+                  </strong>
+                </div>
+              )}
+            </div>
+            <div className="export-preview-meta">
               <span>
-                Image<small>Current composition · PNG</small>
-              </span>
-            </button>
-            <button
-              disabled={busy}
-              className={type === 'video' ? 'selected' : ''}
-              onClick={() => {
-                setType('video');
-                setResult(null);
-              }}
-            >
-              <Film size={20} />
-              <span>
-                Video<small>Entire timeline · silent</small>
-              </span>
-            </button>
-          </div>
-          <fieldset disabled={busy} className="export-settings">
-            <Field label="Resolution">
-              <Select
-                value={resolution}
-                disabled={busy}
-                onValueChange={(value) => {
-                  setResolution(value);
-                  if (value !== 'custom') setLongEdge(+value);
-                }}
-              >
-                <SelectOption value="1920" icon="image">
-                  HD · 1920 px
-                </SelectOption>
-                <SelectOption value="2560" icon="image">
-                  2K · 2560 px
-                </SelectOption>
-                <SelectOption value="3840" icon="image">
-                  4K · 3840 px
-                </SelectOption>
-                <SelectOption value="custom" icon="surface">
-                  Custom dimensions
-                </SelectOption>
-              </Select>
-            </Field>
-            {resolution === 'custom' && (
-              <NumberField
-                label="Longest edge"
-                value={longEdge}
-                min={64}
-                max={16384}
-                step={1}
-                unit="px"
-                onChange={setLongEdge}
-              />
-            )}
-            <div className="pixel-summary">
-              <strong>
                 {dimensions.width.toLocaleString()} × {dimensions.height.toLocaleString()}
-              </strong>
+              </span>
               <span>
-                pixels · {project.output.width}:{project.output.height}
+                {type === 'png' ? 'PNG' : `${totalDuration(project).toFixed(1)}s · ${fps} fps`}
               </span>
             </div>
-            {type === 'png' ? (
+            {result && (
+              <div className="export-success" role="status">
+                <Check size={15} />
+                <span>
+                  Export ready
+                  <small>
+                    {(result.blob.size / 1024 / 1024).toFixed(1)} MB · {result.name}
+                  </small>
+                </span>
+              </div>
+            )}
+          </div>
+          <div className="export-options">
+            <PaperSegmentedControl
+              aria-label="Export type"
+              value={type}
+              fullWidth
+              disabled={busy}
+              options={[
+                { value: 'png', label: 'Image' },
+                { value: 'video', label: 'Video', disabled: !project.scenes.length },
+              ]}
+              onValueChange={(value) => {
+                setType(value as 'png' | 'video');
+                setResult(null);
+              }}
+            />
+            <fieldset disabled={busy} className="export-settings">
+              <Field label="Resolution">
+                <Select
+                  value={resolution}
+                  disabled={busy}
+                  onValueChange={(value) => {
+                    setResolution(value);
+                    if (value !== 'custom') setLongEdge(+value);
+                  }}
+                >
+                  <SelectOption value="1920">HD · 1920 px</SelectOption>
+                  <SelectOption value="2560">2K · 2560 px</SelectOption>
+                  <SelectOption value="3840">4K · 3840 px</SelectOption>
+                  <SelectOption value="custom">Custom dimensions</SelectOption>
+                </Select>
+              </Field>
+              {resolution === 'custom' && (
+                <NumberField
+                  label="Longest edge"
+                  value={longEdge}
+                  min={64}
+                  max={16384}
+                  step={1}
+                  unit="px"
+                  onChange={setLongEdge}
+                />
+              )}
+              {type === 'png' ? (
+                <label className="check">
+                  <input
+                    type="checkbox"
+                    checked={transparent}
+                    onChange={(e) => setTransparent(e.target.checked)}
+                  />{' '}
+                  Transparent background
+                </label>
+              ) : (
+                <>
+                  <div className="field-grid">
+                    <Field label="Frame rate">
+                      <Select
+                        value={String(fps)}
+                        disabled={busy}
+                        onValueChange={(value) => setFps(+value as 30 | 60)}
+                      >
+                        <SelectOption value="30">30 fps</SelectOption>
+                        <SelectOption value="60">60 fps</SelectOption>
+                      </Select>
+                    </Field>
+                    <Field label="Format">
+                      <Select
+                        value={format}
+                        disabled={busy}
+                        onValueChange={(value) => setFormat(value as typeof format)}
+                      >
+                        <SelectOption value="auto">Automatic</SelectOption>
+                        <SelectOption value="mp4">MP4</SelectOption>
+                        <SelectOption value="webm">WebM</SelectOption>
+                      </Select>
+                    </Field>
+                  </div>
+                  <div className="encoder-note">
+                    {support ? (
+                      <>
+                        <Check size={14} />
+                        {support.message}
+                      </>
+                    ) : supportError ? (
+                      <>
+                        <AlertCircle size={15} />
+                        {supportError}
+                      </>
+                    ) : (
+                      <>
+                        <span className="spinner" /> Checking browser encoder
+                      </>
+                    )}
+                  </div>
+                  <p className="panel-note">Video exports have no audio.</p>
+                </>
+              )}
               <label className="check">
                 <input
                   type="checkbox"
-                  checked={transparent}
-                  onChange={(e) => setTransparent(e.target.checked)}
-                />{' '}
-                Transparent background
+                  checked={saveLibrary}
+                  onChange={(e) => setSaveLibrary(e.target.checked)}
+                />
+                Also save to Library
               </label>
-            ) : (
-              <>
-                <div className="field-grid">
-                  <Field label="Frame rate">
-                    <Select
-                      value={String(fps)}
-                      disabled={busy}
-                      onValueChange={(value) => setFps(+value as 30 | 60)}
-                    >
-                      <SelectOption value="30">30 fps</SelectOption>
-                      <SelectOption value="60">60 fps</SelectOption>
-                    </Select>
-                  </Field>
-                  <Field label="Container">
-                    <Select
-                      value={format}
-                      disabled={busy}
-                      onValueChange={(value) => setFormat(value as typeof format)}
-                    >
-                      <SelectOption value="auto">Auto · prefer MP4</SelectOption>
-                      <SelectOption value="mp4">MP4</SelectOption>
-                      <SelectOption value="webm">WebM</SelectOption>
-                    </Select>
-                  </Field>
+            </fieldset>
+            {busy && (
+              <div className="export-progress" role="status">
+                <div>
+                  <span>
+                    {type === 'png'
+                      ? 'Rendering image'
+                      : `Rendering frames · ${Math.round(progress * 100)}%`}
+                  </span>
+                  <button className="text-button" onClick={() => abort.current?.abort()}>
+                    Cancel
+                  </button>
                 </div>
-                <div className="encoder-note">
-                  {support ? (
-                    <>
-                      <Check size={14} />
-                      {support.message}
-                    </>
-                  ) : supportError ? (
-                    <>
-                      <AlertCircle size={15} />
-                      {supportError}
-                    </>
-                  ) : (
-                    <>
-                      <span className="spinner" /> Checking browser encoder
-                    </>
-                  )}
-                </div>
-                <p className="panel-note">
-                  {totalDuration(project).toFixed(2)} seconds ·{' '}
-                  {Math.ceil(totalDuration(project) * fps)} frames. Video output is silent.
-                </p>
-              </>
-            )}
-            <label className="check">
-              <input
-                type="checkbox"
-                checked={saveLibrary}
-                onChange={(e) => setSaveLibrary(e.target.checked)}
-              />
-              <FolderCheck size={15} /> Also save to Library
-            </label>
-          </fieldset>
-          {busy && (
-            <div className="export-progress" role="status">
-              <div>
-                <span>
-                  {type === 'png'
-                    ? 'Rendering image'
-                    : `Rendering frames · ${Math.round(progress * 100)}%`}
-                </span>
-                <button className="text-button" onClick={() => abort.current?.abort()}>
-                  Cancel
-                </button>
+                {type === 'video' ? (
+                  <progress value={progress} max={1} />
+                ) : (
+                  <span className="spinner" />
+                )}
               </div>
-              {type === 'video' ? (
-                <progress value={progress} max={1} />
-              ) : (
-                <span className="spinner" />
-              )}
-            </div>
-          )}
-          {error && (
-            <p className="error-message" role="alert">
-              {error}
-            </p>
-          )}
-          {result && (
-            <div className="export-result">
-              {type === 'png' ? (
-                <img src={result.url} alt="Exported composition" />
-              ) : (
-                <video src={result.url} controls playsInline />
-              )}
-              <span>
-                <Check size={14} /> {result.name} · {(result.blob.size / 1024 / 1024).toFixed(1)} MB
-              </span>
-              <button className="secondary full" onClick={() => download(result.blob, result.name)}>
-                <Download size={15} /> Download again
-              </button>
-            </div>
-          )}
+            )}
+            {error && (
+              <p className="error-message" role="alert">
+                {error}
+              </p>
+            )}
+          </div>
         </div>
         <div className="export-footer">
-          <span>Local rendering. Your media stays here.</span>
+          <button className="text-button" disabled={busy} onClick={() => setClosing(true)}>
+            {result ? 'Done' : 'Cancel'}
+          </button>
           <button
             className="primary"
             disabled={busy || (type === 'video' && !support)}
-            onClick={start}
+            onClick={() => (result ? download(result.blob, result.name) : void start())}
           >
             <Download size={16} />
-            {busy ? 'Exporting…' : `Export ${type === 'png' ? 'image' : 'video'}`}
+            {busy
+              ? 'Exporting…'
+              : result
+                ? 'Download again'
+                : `Export ${type === 'png' ? 'image' : 'video'}`}
           </button>
         </div>
       </div>

@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
-import { MousePointer2 } from 'lucide-react';
+import { MousePointer2 } from '@/components/ui/studio-icons';
 import { useStudio, selectedScene } from '@/lib/studio/store';
 import { runtime } from '@/lib/studio/runtime';
 import {
@@ -49,7 +49,6 @@ export default function Stage({
   const scene = useStudio(selectedScene);
   const output = useStudio((s) => s.project?.output);
   const layerId = useStudio((s) => s.layerId);
-  const mode = useStudio((s) => s.mode);
   const manualFocus = !!scene && !scene.pose.autoFocus;
   const tool = requestedTool === 'focus' && !manualFocus ? 'move' : requestedTool;
   const drag = useRef<{
@@ -162,7 +161,7 @@ export default function Stage({
         const p = useStudio.getState().project;
         if (p) {
           const t = r.time + (now - previous) / 1000;
-          const duration = totalDuration(p);
+          const duration = Math.min(totalDuration(p), r.playbackEnd ?? Infinity);
           runtime.set({ time: Math.min(t, duration), playing: t < duration });
         }
       }
@@ -243,21 +242,13 @@ export default function Stage({
   };
   return (
     <section className="stage-wrap" ref={wrap} aria-label="Composition studio">
-      <div className="stage-meta">
-        <span className="stage-format">
-          {output ? `${output.width}:${output.height}` : '16:9'}
-          <span className="tiny-dot" /> {mode === 'photo' ? 'STILL' : 'MOTION'}
-        </span>
-        <span className="stage-hint">
+      {(tool === 'point' || tool === 'rotate') && (
+        <div className="focus-tool-hint" role="status">
           {tool === 'point'
             ? 'Click or drag on the surface to mark a detail'
-            : tool === 'focus'
-              ? 'Click your subject to set focus'
-              : tool === 'rotate'
-                ? 'Drag your subject to rotate, or enter exact angles'
-                : 'Drag to move. Ctrl + drag to rotate.'}
-        </span>
-      </div>
+            : 'Drag your subject to rotate, or enter exact angles'}
+        </div>
+      )}
       <div className="artboard checker" style={{ width: size.width, height: size.height }}>
         <canvas
           ref={canvas}
@@ -409,7 +400,7 @@ export default function Stage({
             position: 'absolute',
             width: 22,
             height: 22,
-            border: '2px solid #0088ff',
+            border: '2px solid var(--accent)',
             borderRadius: '50%',
             boxShadow: '0 0 0 2px #fff, 0 1px 6px #0006',
             transform: 'translate(-50%, -50%)',

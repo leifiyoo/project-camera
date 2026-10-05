@@ -25,6 +25,29 @@ function roundedShape(w: number, h: number, r: number) {
   s.quadraticCurveTo(x, y, x + r, y);
   return s;
 }
+/** A CSS-style linear gradient (angle 0 points up) spanning the whole canvas. */
+function linearGradient(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  angle: number,
+  from: string,
+  to: string,
+) {
+  const a = (angle * Math.PI) / 180,
+    dx = Math.sin(a),
+    dy = -Math.cos(a);
+  const half = (Math.abs(w * dx) + Math.abs(h * dy)) / 2;
+  const g = ctx.createLinearGradient(
+    w / 2 - dx * half,
+    h / 2 - dy * half,
+    w / 2 + dx * half,
+    h / 2 + dy * half,
+  );
+  g.addColorStop(0, from);
+  g.addColorStop(1, to);
+  return g;
+}
 type Subject = { group: THREE.Group; screen: THREE.Mesh; w: number; h: number; signature: string };
 export class StudioRenderer {
   readonly canvas: HTMLCanvasElement;
@@ -162,7 +185,8 @@ export class StudioRenderer {
     return t;
   }
   private subject(scene: Scene, asset: Asset): Subject {
-    const signature = JSON.stringify([asset.width, asset.height]);
+    const radius = Math.max(0, scene.frame.radius || 0);
+    const signature = JSON.stringify([asset.width, asset.height, radius]);
     const cached = this.subjects.get(scene.id);
     if (cached?.signature === signature) return cached;
     if (cached) this.clearSubject(cached);
@@ -174,10 +198,10 @@ export class StudioRenderer {
       h = 4;
       w = h * aspect;
     }
-    // Imported media is a single image plane. No backing, frame, rounded mask
-    // or extrusion may fill transparent pixels or add a border to the source.
-    const shape = roundedShape(w, h, 0);
-    const geo = new THREE.ShapeGeometry(shape, 24);
+    // Imported media is a single image plane. No backing, frame or extrusion may
+    // fill transparent pixels or add a border; an optional corner radius only clips.
+    const shape = roundedShape(w, h, radius * Math.min(w, h));
+    const geo = new THREE.ShapeGeometry(shape, radius ? 32 : 1);
     const uv = geo.getAttribute('uv');
     for (let i = 0; i < uv.count; i++)
       uv.setXY(i, (uv.getX(i) + w / 2) / w, (uv.getY(i) + h / 2) / h);
@@ -217,7 +241,17 @@ export class StudioRenderer {
       const ctx = this.layerCtx;
       ctx.clearRect(0, 0, w, h);
       if (!options.transparent && (scene.background.kind !== 'transparent' || !state.still)) {
-        ctx.fillStyle = scene.background.color;
+        ctx.fillStyle =
+          scene.background.kind === 'gradient'
+            ? linearGradient(
+                ctx,
+                w,
+                h,
+                scene.background.angle ?? 135,
+                scene.background.color,
+                scene.background.color2 || scene.background.color,
+              )
+            : scene.background.color;
         ctx.fillRect(0, 0, w, h);
         if (scene.background.kind === 'image' && scene.background.assetId) {
           used.add(scene.background.assetId);
@@ -330,6 +364,12 @@ export class StudioRenderer {
       await drawOverlays(ctx, scene, layer.localTime, w, h, this.media, state.still);
       this.ctx.save();
       this.ctx.globalAlpha = layer.opacity;
+      if (layer.reveal !== undefined) {
+        this.ctx.beginPath();
+        this.ctx.rect(0, 0, w * layer.reveal, h);
+        this.ctx.clip();
+      }
+      if (layer.transitionBlur) this.ctx.filter = `blur(${h * 0.018 * layer.transitionBlur}px)`;
       this.ctx.translate(w / 2 + layer.offsetX * w, h / 2);
       this.ctx.scale(layer.scale, layer.scale);
       this.ctx.drawImage(this.layerCanvas, -w / 2, -h / 2);
@@ -381,20 +421,17 @@ export class StudioRenderer {
       ctx.globalCompositeOperation = 'source-over';
       this.shadowKey = key;
     }
-    const size = { small: 1, medium: 1.04, large: 1.1 }[
-      scene.shadow as 'small' | 'medium' | 'large'
-    ];
-    const softness = { small: 0.012, medium: 0.023, large: 0.04 }[
+    const softness = { small: 0.008, medium: 0.018, large: 0.032 }[
       scene.shadow as 'small' | 'medium' | 'large'
     ];
     this.layerCtx.save();
     this.layerCtx.filter = `blur(${h * softness * Math.min(2, 6 / this.camera.position.z)}px)`;
     this.layerCtx.drawImage(
       this.shadowCanvas,
-      (w * (1 - size)) / 2 + w * 0.018,
-      (h * (1 - size)) / 2 + h * 0.03,
-      w * size,
-      h * size,
+      0,
+      h * (scene.shadow === 'small' ? 0.008 : scene.shadow === 'medium' ? 0.015 : 0.024),
+      w,
+      h,
     );
     this.layerCtx.restore();
   }

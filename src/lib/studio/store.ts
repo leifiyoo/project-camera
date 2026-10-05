@@ -41,9 +41,10 @@ export const useStudio = create<State>((set, get) => ({
     runtime.set({ time: 0, playing: false });
     const project = clone(p);
     for (const scene of [project.photo, ...project.scenes]) {
+      // Legacy device frames are retired; a plain frame keeps its corner radius.
+      if (scene.frame.kind !== 'plain') scene.frame.radius = 0;
       scene.frame.kind = 'plain';
       scene.frame.header = false;
-      scene.frame.radius = 0;
       scene.frame.border = 0;
       scene.frame.padding = 0;
       scene.focusWidth ??= 0.12;

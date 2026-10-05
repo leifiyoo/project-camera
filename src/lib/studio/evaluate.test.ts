@@ -11,6 +11,18 @@ import {
 } from './evaluate';
 import { composeScene } from './compose';
 describe('shared timeline semantics', () => {
+  it('renders wipe and blur from the actual overlapping clips', () => {
+    const p = makeProject();
+    p.scenes = [makeScene(), makeScene()];
+    p.scenes[1].transition = { kind: 'wipe', duration: 1 };
+    expect(evaluateProjectAtTime(p, 3.5).layers[1].reveal).toBeCloseTo(0.5);
+    p.scenes[1].transition.kind = 'blur';
+    const blur = evaluateProjectAtTime(p, 3.5);
+    expect(blur.layers[0].transitionBlur).toBeCloseTo(0.5);
+    expect(blur.layers[1].transitionBlur).toBeCloseTo(0.5);
+    expect(blur.layers[1].opacity).toBeCloseTo(0.5);
+    expect(evaluateProjectAtTime(p, 4).layers).toHaveLength(1);
+  });
   it('overlaps incoming scenes once, bounds overlaps, and never activates three scenes', () => {
     const p = makeProject();
     p.scenes = [makeScene(), makeScene(), makeScene()];

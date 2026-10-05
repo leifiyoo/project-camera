@@ -1,5 +1,12 @@
 'use client';
-import { useEffect, useRef, useState, useSyncExternalStore, type PointerEvent } from 'react';
+import {
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type PointerEvent,
+  type RefObject,
+} from 'react';
 import { DropdownMenu } from 'radix-ui';
 import {
   Play,
@@ -17,13 +24,15 @@ import {
   Square,
   Minus,
   ImagePlus,
-} from 'lucide-react';
+  Scissors,
+} from '@/components/ui/studio-icons';
 import { useStudio } from '@/lib/studio/store';
 import { runtime } from '@/lib/studio/runtime';
 import { timelineSpans, totalDuration } from '@/lib/studio/evaluate';
 import { clone, makeScene, uid, clamp, type Asset, type Scene } from '@/lib/studio/model';
-import { moveClip, resizeClip } from '@/lib/studio/timeline-edit';
+import { moveClip, resizeClip, splitClip } from '@/lib/studio/timeline-edit';
 import { IconButton } from './primitives';
+import TransitionPicker from './TransitionPicker';
 
 export function timeLabel(time: number) {
   const hundredths = Math.max(0, Math.round(time * 100));
@@ -66,12 +75,76 @@ export function PlaybackControls() {
     </div>
   );
 }
-function Playhead({ scale }: { scale: number }) {
+function Playhead({
+  scale,
+  scroller,
+}: {
+  scale: number;
+  scroller: RefObject<HTMLDivElement | null>;
+}) {
   const r = useSyncExternalStore(runtime.subscribe, runtime.get, runtime.get);
+  useEffect(() => {
+    // Keep the playhead visible during playback by paging the track along with it.
+    const element = scroller.current;
+    if (!r.playing || !element) return;
+    const x = r.time * scale;
+    if (x < element.scrollLeft || x > element.scrollLeft + element.clientWidth - 24)
+      element.scrollTo({ left: Math.max(0, x - 48) });
+  }, [r.time, r.playing, scale, scroller]);
   return (
     <div className="playhead" style={{ left: r.time * scale }}>
       <span />
     </div>
+  );
+}
+
+function splitAtPlayhead() {
+  const state = useStudio.getState();
+  if (!state.project) return;
+  const span = timelineSpans(state.project).find((s) => s.scene.id === state.sceneId);
+  if (!span) return;
+  const pair = splitClip(span.scene, runtime.get().time - span.start);
+  if (!pair) return;
+  runtime.set({ playing: false });
+  state.edit((p) =>
+    p.scenes.splice(
+      p.scenes.findIndex((s) => s.id === span.scene.id),
+      1,
+      ...pair,
+    ),
+  );
+  state.selectScene(pair[1].id);
+}
+function SplitButton() {
+  const r = useSyncExternalStore(runtime.subscribe, runtime.get, runtime.get);
+  const project = useStudio((s) => s.project);
+  const selected = useStudio((s) => s.sceneId);
+  const span = project && timelineSpans(project).find((s) => s.scene.id === selected);
+  const local = span ? r.time - span.start : 0;
+  const enabled = !!span && local >= 0.1 && local <= span.scene.duration - 0.1;
+  useEffect(() => {
+    const key = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== 'b') return;
+      if (
+        (e.target as Element)?.closest('input,textarea,[contenteditable], [role="dialog"]') ||
+        document.querySelector('[role="dialog"], [data-studio-popup]')
+      )
+        return;
+      e.preventDefault();
+      splitAtPlayhead();
+    };
+    window.addEventListener('keydown', key);
+    return () => window.removeEventListener('keydown', key);
+  }, []);
+  return (
+    <button
+      className="text-button split-clip-button"
+      disabled={!enabled}
+      title="Split at playhead · Ctrl B"
+      onClick={splitAtPlayhead}
+    >
+      <Scissors size={14} /> Split
+    </button>
   );
 }
 type Drag = {
@@ -104,14 +177,25 @@ export default function Timeline({
   const suppressClick = useRef(false);
   const [zoom, setZoom] = useState(1);
   const [width, setWidth] = useState(600);
+  const [dragScale, setDragScale] = useState<number | null>(null);
   const [visual, setVisual] = useState<{ id: string; x: number; target: number } | null>(null);
-  const scale = 64 * zoom;
+  const duration = project ? totalDuration(project) : 0;
+  const scale = dragScale ?? clamp((width * 0.9) / Math.max(2, duration + 0.8), 12, 480) * zoom;
   useEffect(() => {
     const element = scroll.current;
     if (!element) return;
     const observer = new ResizeObserver(([entry]) => setWidth(entry.contentRect.width));
     observer.observe(element);
-    return () => observer.disconnect();
+    const wheel = (e: WheelEvent) => {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      e.preventDefault();
+      setZoom((v) => clamp(v * (e.deltaY < 0 ? 1.25 : 0.8), 0.25, 4));
+    };
+    element.addEventListener('wheel', wheel, { passive: false });
+    return () => {
+      observer.disconnect();
+      element.removeEventListener('wheel', wheel);
+    };
   }, []);
   useEffect(
     () => () => {
@@ -121,7 +205,6 @@ export default function Timeline({
   );
   if (!project) return null;
   const spans = timelineSpans(project);
-  const duration = totalDuration(project);
   const selectedSpan = spans.find((s) => s.scene.id === selected);
   const state = useStudio.getState();
   const select = (id: string) => {
@@ -195,6 +278,7 @@ export default function Timeline({
       moved: false,
     };
     suppressClick.current = false;
+    setDragScale(scale);
     e.currentTarget.setPointerCapture(e.pointerId);
   };
   const moveDrag = (e: PointerEvent<HTMLButtonElement>) => {
@@ -231,13 +315,18 @@ export default function Timeline({
     state.commit();
     suppressClick.current = d.moved;
     gesture.current = null;
+    setDragScale(null);
     setVisual(null);
     select(d.id);
   };
-  const rulerStep = scale >= 48 ? 1 : scale >= 24 ? 2 : 5;
+  const rulerStep = scale >= 300 && duration < 3 ? 0.5 : scale >= 48 ? 1 : scale >= 24 ? 2 : 5;
   const rulerEnd = Math.max(duration, width / scale);
   return (
-    <section className="timeline video-timeline" aria-label="Video timeline">
+    <section
+      className="timeline video-timeline"
+      data-empty={!spans.length || undefined}
+      aria-label="Video timeline"
+    >
       <div className="timeline-head">
         <div className="timeline-title">
           Timeline{' '}
@@ -245,11 +334,8 @@ export default function Timeline({
             {spans.length} {spans.length === 1 ? 'scene' : 'scenes'}
           </span>
         </div>
-        <PlaybackControls />
+        {!!spans.length && <PlaybackControls />}
         <div className="timeline-add-actions">
-          <button className="text-button" onClick={onAdd}>
-            <Upload size={14} /> Import media
-          </button>
           <DropdownMenu.Root>
             <DropdownMenu.Trigger asChild>
               <button className="secondary add-scene-button" aria-label="Add scene">
@@ -301,6 +387,14 @@ export default function Timeline({
             className="timeline-track"
             ref={track}
             style={{ width: Math.max(width, duration * scale + 100) }}
+            onPointerDown={(e) => {
+              if (e.target !== e.currentTarget || e.button !== 0) return;
+              e.currentTarget.setPointerCapture(e.pointerId);
+              scrub(e);
+            }}
+            onPointerMove={(e) => {
+              if (e.buttons === 1 && e.currentTarget.hasPointerCapture(e.pointerId)) scrub(e);
+            }}
           >
             <div
               className="time-ruler"
@@ -325,14 +419,17 @@ export default function Timeline({
             {spans.map(({ scene, start, overlap }, i) => {
               const asset = assets.find((a) => a.id === scene.assetId);
               const moving = visual?.id === scene.id;
+              const displayDuration =
+                scene.duration - overlap / 2 - (spans[i + 1]?.overlap || 0) / 2;
               return (
                 <div
                   key={scene.id}
                   data-scene-id={scene.id}
-                  className={`scene-clip ${selected === scene.id ? 'selected' : ''}${moving ? 'is-moving' : ''}`}
+                  data-compact={displayDuration * scale < 145 || undefined}
+                  className={`scene-clip${selected === scene.id ? ' selected' : ''}${moving ? ' is-moving' : ''}`}
                   style={{
-                    left: start * scale,
-                    width: scene.duration * scale,
+                    left: (start + overlap / 2) * scale,
+                    width: displayDuration * scale,
                     transform: moving ? `translateX(${visual.x}px)` : undefined,
                     zIndex: moving ? spans.length + 1 : i + 1,
                   }}
@@ -373,13 +470,6 @@ export default function Timeline({
                       </small>
                     </span>
                   </button>
-                  {overlap > 0 && (
-                    <span
-                      className="transition-zone"
-                      style={{ width: overlap * scale }}
-                      title={`${scene.transition.kind} · ${overlap.toFixed(2)}s`}
-                    />
-                  )}
                   {(['start', 'end'] as const).map((edge) => (
                     <button
                       key={edge}
@@ -415,7 +505,7 @@ export default function Timeline({
                     <button
                       key={key.id}
                       className={`key-dot ${keyId === key.id ? 'active' : ''}`}
-                      style={{ left: clamp(key.time, 0, scene.duration) * scale }}
+                      style={{ left: clamp(key.time - overlap / 2, 0, displayDuration) * scale }}
                       aria-label={`Camera keyframe at ${key.time.toFixed(2)} seconds in ${scene.name}`}
                       onClick={() => {
                         state.selectScene(scene.id);
@@ -451,85 +541,104 @@ export default function Timeline({
                 </div>
               );
             })}
+            {spans.slice(1).map(({ scene, start, overlap }) => (
+              <div
+                className="timeline-transition"
+                key={`transition-${scene.id}`}
+                style={{ left: (start + overlap / 2) * scale }}
+              >
+                <TransitionPicker sceneId={scene.id} />
+              </div>
+            ))}
             {visual && (
               <div
                 className="clip-drop-marker"
                 style={{ left: (spans[visual.target]?.start ?? duration) * scale }}
               />
             )}
-            <Playhead scale={scale} />
+            <Playhead scale={scale} scroller={scroll} />
           </div>
         ) : (
           <button className="empty-timeline" onClick={onAdd}>
             <Plus size={18} />
-            <span>Your timeline is empty. Import media or add a scene.</span>
+            <span>Add your first clip</span>
           </button>
         )}
       </div>
-      <div className="timeline-bottom">
-        <div className="timeline-actions">
-          <IconButton
-            label="Move scene left"
-            disabled={!selectedSpan || selectedSpan === spans[0]}
-            onClick={() => reorder(-1)}
-          >
-            <ArrowLeft size={14} />
-          </IconButton>
-          <IconButton
-            label="Move scene right"
-            disabled={!selectedSpan || selectedSpan === spans.at(-1)}
-            onClick={() => reorder(1)}
-          >
-            <ArrowRight size={14} />
-          </IconButton>
-          <IconButton
-            label="Duplicate scene"
-            disabled={!selectedSpan}
-            onClick={() => {
-              if (!selectedSpan) return;
-              const scene = clone(selectedSpan.scene);
-              scene.id = uid();
-              scene.layers.forEach((l) => {
-                l.id = uid();
-              });
-              scene.keyframes.forEach((k) => {
-                k.id = uid();
-              });
-              state.edit((p) =>
-                p.scenes.splice(
-                  p.scenes.findIndex((s) => s.id === selectedSpan.scene.id) + 1,
-                  0,
-                  scene,
-                ),
-              );
-              select(scene.id);
-            }}
-          >
-            <Copy size={14} />
-          </IconButton>
-          <IconButton label="Delete selected scene" disabled={!selectedSpan} onClick={remove}>
-            <Trash2 size={14} />
-          </IconButton>
-          <span className="timeline-help">Drag a scene to reorder · drag its edges to resize</span>
+      {!!spans.length && (
+        <div className="timeline-bottom">
+          <div className="timeline-actions">
+            <SplitButton />
+            <IconButton
+              label="Move scene left"
+              disabled={!selectedSpan || selectedSpan === spans[0]}
+              onClick={() => reorder(-1)}
+            >
+              <ArrowLeft size={14} />
+            </IconButton>
+            <IconButton
+              label="Move scene right"
+              disabled={!selectedSpan || selectedSpan === spans.at(-1)}
+              onClick={() => reorder(1)}
+            >
+              <ArrowRight size={14} />
+            </IconButton>
+            <IconButton
+              label="Duplicate scene"
+              disabled={!selectedSpan}
+              onClick={() => {
+                if (!selectedSpan) return;
+                const scene = clone(selectedSpan.scene);
+                scene.id = uid();
+                scene.layers.forEach((l) => {
+                  l.id = uid();
+                });
+                scene.keyframes.forEach((k) => {
+                  k.id = uid();
+                });
+                state.edit((p) =>
+                  p.scenes.splice(
+                    p.scenes.findIndex((s) => s.id === selectedSpan.scene.id) + 1,
+                    0,
+                    scene,
+                  ),
+                );
+                select(scene.id);
+              }}
+            >
+              <Copy size={14} />
+            </IconButton>
+            <IconButton label="Delete selected scene" disabled={!selectedSpan} onClick={remove}>
+              <Trash2 size={14} />
+            </IconButton>
+            <span className="timeline-help">Drag to reorder · trim from either edge</span>
+          </div>
+          <div className="timeline-zoom">
+            <button
+              className="text-button fit-timeline"
+              title="Fit timeline to workspace"
+              onClick={() => setZoom(1)}
+            >
+              Fit
+            </button>
+            <IconButton
+              label="Zoom out timeline"
+              disabled={zoom <= 0.25}
+              onClick={() => setZoom((v) => Math.max(0.25, v / 2))}
+            >
+              <Minus size={13} />
+            </IconButton>
+            <span>{Math.round(zoom * 100)}%</span>
+            <IconButton
+              label="Zoom in timeline"
+              disabled={zoom >= 4}
+              onClick={() => setZoom((v) => Math.min(4, v * 2))}
+            >
+              <Plus size={13} />
+            </IconButton>
+          </div>
         </div>
-        <div className="timeline-zoom">
-          <IconButton
-            label="Zoom out timeline"
-            disabled={zoom <= 0.25}
-            onClick={() => setZoom((v) => Math.max(0.25, v / 2))}
-          >
-            <Minus size={13} />
-          </IconButton>
-          <span>{Math.round(zoom * 100)}%</span>
-          <IconButton
-            label="Zoom in timeline"
-            disabled={zoom >= 4}
-            onClick={() => setZoom((v) => Math.min(4, v * 2))}
-          >
-            <Plus size={13} />
-          </IconButton>
-        </div>
-      </div>
+      )}
     </section>
   );
 }

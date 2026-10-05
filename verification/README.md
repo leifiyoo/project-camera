@@ -1,5 +1,28 @@
 # Verification performed
 
+## Whirl design adaptation — 3 October 2026
+
+The reference is `whirl/apps/v2`, especially `app/globals.css`, `app/fonts.css`, `components/ui/dialog.tsx`, `components/settings/choice-capsules.tsx` and `components/settings/settings-rows.tsx`. The public Whirl interface was also inspected visually. Its source checkout was not modified.
+
+The editor now uses the same Inter variable font, monochrome light/dark surface values, recessed work area, 12px corners, monochrome capsule selections, frosted menus and Tabler icon family. Settings follows the reference's bordered preference rows and capsule controls. The existing editing, project storage and media/export flows are retained.
+
+The current browser report adds checks for the actual font, contrasting active selections, Whirl's dark surface, arrow-key theme controls and a 540px layout. Export previews render an independent 640px frame rather than capturing the stage mid-render; the browser check inspects actual preview pixels before exporting. All eleven browser check groups pass without page errors. All 24 unit tests, TypeScript, ESLint and the production build pass. Screenshots named `ui-photo-*`, `ui-settings-*`, `ui-export-image.png`, `ui-export-video.png` and `ui-responsive-*` show the current design.
+
+## Studio UI rework — 3 October 2026
+
+`npm run verify:browser` runs `scripts/verify-ui-rework.mjs` in an isolated Chromium context. The current acceptance report is `ui-rework-report.json`; screenshots start with `ui-`.
+
+- Empty photo and video workspaces contain no seeded projects or storage footer; unused playback and editing controls remain hidden.
+- Light/dark appearance, the light focus switch, text-only shadow choices, centered Settings/Projects/Library dialogs, nested Escape handling and modal focus work.
+- Actual image and generated WebM uploads work; importing video opens the Video workspace while preserving the photo.
+- Splitting, Undo/Redo, all six transitions, bounded transition preview, camera motion and text layers work through the UI.
+- PNG export downloads a valid image; WebM export decodes with the expected duration including transition overlaps. Project reload restores clips, transitions and layers.
+- Desktop, tablet and mobile layouts have no page-width overflow; reduced-motion preferences disable decorative motion. No page errors or demo media requests occurred.
+- 24 unit tests verify rendering evaluation, trimmed/looped source continuity, easing continuity after repeated splits, schema, history and safe removal of legacy examples.
+- TypeScript, ESLint and the production build pass.
+
+Video exports currently have no audio. The checks below are historical and describe earlier versions of the workspace.
+
 ## Simplified workspace redesign
 
 The persistent Look/Camera/Canvas controls replace the dock. `scripts/verify-redesign.mjs` uses an isolated Chromium context and the actual editor; `redesign-report.json` records photo import, source preservation, presets/Undo, MF click, progressive camera/canvas controls, native PNG, playable MP4 and reload. Light photo/video and dark photo layouts passed at 1440, 1280, 768 and 390 pixels with no header overlap or page-width overflow.

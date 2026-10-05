@@ -34,6 +34,7 @@ export default function ColorPicker({
           title={value}
         >
           <span className="color-trigger-swatch" style={{ background: value }} />
+          <span className="color-trigger-value">{value.toUpperCase()}</span>
           <UIIcon name="arrow" size={14} />
         </Button>
       </Popover.Trigger>
