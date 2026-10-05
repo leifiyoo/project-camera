@@ -123,7 +123,7 @@ export default function TransitionPicker({
               <Range
                 label="Duration"
                 value={effective}
-                min={Math.min(0.1, limit)}
+                min={Math.min(0.1, limit / 2)}
                 max={limit}
                 step={0.05}
                 unit="s"
