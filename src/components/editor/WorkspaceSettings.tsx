@@ -1,6 +1,6 @@
 'use client';
 import { Tabs } from 'radix-ui';
-import { Moon, Sun } from '@/components/ui/studio-icons';
+import { Monitor, Moon, Sun } from '@/components/ui/studio-icons';
 import type { Asset } from '@/lib/studio/model';
 import { selectedScene, useStudio } from '@/lib/studio/store';
 import Inspector, { type MediaTarget } from './Inspector';
@@ -48,6 +48,7 @@ export default function WorkspaceSettings({
             onChange={onTheme}
             label="Appearance"
             options={[
+              { value: 'system', label: 'System', icon: <Monitor size={16} aria-hidden="true" /> },
               { value: 'light', label: 'Light', icon: <Sun size={16} aria-hidden="true" /> },
               { value: 'dark', label: 'Dark', icon: <Moon size={16} aria-hidden="true" /> },
             ]}

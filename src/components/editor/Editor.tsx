@@ -112,7 +112,8 @@ export default function Editor() {
     [focusRequest, setFocusRequest] = useState(0),
     [exporting, setExporting] = useState(false),
     [quality, setQuality] = useState<'high' | 'draft'>('high'),
-    [theme, setTheme] = useState('light'),
+    [systemTheme, setSystemTheme] = useState<'light' | 'dark'>('light'),
+    [themeOverride, setThemeOverride] = useState<'light' | 'dark' | null>(null),
     [toast, setToast] = useState<Toast | null>(null),
     [saveState, setSaveState] = useState<SaveState>('saved'),
     [importStatus, setImportStatus] = useState(''),
@@ -123,6 +124,7 @@ export default function Editor() {
     [mod, setMod] = useState('Ctrl'),
     [confirmDelete, setConfirmDelete] = useState<string | null>(null),
     [copying, setCopying] = useState(false);
+  const theme = themeOverride ?? systemTheme;
   const canExport =
     !!project &&
     (mode === 'video'
@@ -228,11 +230,9 @@ export default function Editor() {
   }, []);
   useEffect(() => {
     let active = true;
-    const storedTheme =
-        localStorage.getItem('studio-theme') ||
-        (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'),
+    const storedTheme = localStorage.getItem('studio-theme-override'),
       storedQuality = localStorage.getItem('studio-quality') === 'draft' ? 'draft' : 'high';
-    setTheme(storedTheme);
+    if (storedTheme === 'light' || storedTheme === 'dark') setThemeOverride(storedTheme);
     setQuality(storedQuality);
     if (isMac()) setMod('⌘');
     bootstrap ??= boot();
@@ -261,9 +261,24 @@ export default function Editor() {
     };
   }, [refresh, notify]);
   useEffect(() => {
+    const query = window.matchMedia('(prefers-color-scheme: dark)'),
+      sync = () => setSystemTheme(query.matches ? 'dark' : 'light');
+    sync();
+    query.addEventListener('change', sync);
+    return () => query.removeEventListener('change', sync);
+  }, []);
+  useEffect(() => {
     document.documentElement.dataset.theme = theme;
-    localStorage.setItem('studio-theme', theme);
   }, [theme]);
+  const setThemePreference = (value: string) => {
+    if (value === 'light' || value === 'dark') {
+      localStorage.setItem('studio-theme-override', value);
+      setThemeOverride(value);
+    } else {
+      localStorage.removeItem('studio-theme-override');
+      setThemeOverride(null);
+    }
+  };
   useEffect(() => {
     localStorage.setItem('studio-quality', quality);
   }, [quality]);
@@ -1074,7 +1089,11 @@ export default function Editor() {
                   </DropdownMenu.Item>
                   <DropdownMenu.Item
                     className="paper-menu-item"
-                    onSelect={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                    onSelect={() => {
+                      const next = theme === 'dark' ? 'light' : 'dark';
+                      // Toggling back to the OS appearance resumes following the system.
+                      setThemePreference(next === systemTheme ? 'system' : next);
+                    }}
                   >
                     <span>{theme === 'dark' ? 'Light appearance' : 'Dark appearance'}</span>
                   </DropdownMenu.Item>
@@ -1598,8 +1617,8 @@ export default function Editor() {
         {panel === 'settings' && (
           <Panel title="Settings" onClose={closePanel} centered wide>
             <WorkspaceSettings
-              theme={theme}
-              onTheme={setTheme}
+              theme={themeOverride ?? 'system'}
+              onTheme={setThemePreference}
               quality={quality}
               onQuality={setQuality}
               assets={assets}
