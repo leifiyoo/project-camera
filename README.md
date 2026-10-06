@@ -14,6 +14,10 @@
 
 <p align="center">No account · No uploads · No tracking · No watermark</p>
 
+<p align="center">
+  <img src="docs/showcase.webp" alt="Project Camera showing its own editor in 3D perspective with depth blur" width="100%" />
+</p>
+
 ---
 
 ## ✨ Features
