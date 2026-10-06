@@ -1,12 +1,24 @@
 # Interface Studio
 
-A local photo and motion studio for images and videos. Opens directly in an empty editor without template projects. No account, cloud uploads, API keys, watermark, or usage quota.
+**A local photo studio for product shots and UI mockups.**
+Drop in a screenshot, frame it with a real 3D camera, add depth blur and shadows, and export a polished PNG.
 
-## Run
+No account · No cloud uploads · No API keys · No watermark · No limits
 
-Works locally on **macOS (Apple Silicon and Intel), Windows, and Linux**. Install [Node.js 24 LTS](https://nodejs.org/en/download), which includes npm, and [Git](https://git-scm.com/downloads). No API keys or environment variables are required.
+---
 
-The same terminal commands work on all three systems:
+## ✨ Features
+
+- **Camera:** zoom, rotate and tilt your image in true 3D perspective
+- **Depth blur:** choose a focus point manually or automatically and set the blur strength
+- **Design:** background, soft shadow, aspect ratio, text and logos
+- **Export:** PNG at HD, 2K, 4K or a custom size, with transparency
+- **Projects:** autosaved in your browser, with backup and sharing as ZIP files
+- **Video:** coming soon 🎬
+
+## 🚀 Quick start
+
+You need [Node.js 24](https://nodejs.org/en/download) and [Git](https://git-scm.com/downloads). It works on macOS, Windows and Linux.
 
 ```sh
 git clone https://github.com/leifiyoo/project-camera.git
@@ -15,106 +27,80 @@ npm ci
 npm run dev
 ```
 
-Open [localhost:3000](http://localhost:3000), or the **Local** URL printed in the terminal if port 3000 is already in use. Keep the terminal open; **Ctrl+C** stops the server. On macOS, Terminal is in Applications → Utilities. On Windows, PowerShell or Command Prompt both work (use `npm.cmd` if PowerShell blocks `npm.ps1`).
+Then open **[localhost:3000](http://localhost:3000)**. Press **Ctrl+C** in the terminal to stop.
 
-### Start files
+> **Tip:** If port 3000 is already in use, open the **Local** URL printed in the terminal instead.
+> On Windows PowerShell, use `npm.cmd` if `npm` is blocked.
 
-After cloning or downloading and extracting the repository:
+## 🎨 How to use it
 
-- **macOS:** double-click `start-macos.command`. If an extracted ZIP has lost its executable permission, run `chmod +x start-macos.command start.sh` in the project folder, then double-click again. You can always run `bash start-macos.command` from Terminal.
-- **Windows:** double-click `start-windows.cmd`.
-- **Linux:** run `bash start.sh` in the project folder.
+1. **Import** an image (PNG, JPG, WebP, AVIF, GIF or SVG). You can also drag and drop or paste it.
+2. **Adjust** the camera, focus and design in the sidebar.
+   - Ctrl/Cmd + drag rotates
+   - Ctrl/Cmd + scroll zooms
+3. **Export** your shot as a PNG.
 
-These launchers install the exact dependencies from `package-lock.json` on each launch, then start the development server. The first launch requires internet access. Open the printed Local URL in your browser. For a different port, use `bash start.sh --port 3001` or `start-windows.cmd --port 3001`.
+Your projects are saved automatically in this browser. Clearing the browser data deletes them, so use **Projects → Export** to keep a ZIP backup.
 
-Node 24 is recorded in `.nvmrc` and `.node-version`. With nvm installed, use `nvm install` and `nvm use`. The minimum supported release is Node 24; Node 24 and 26+ are accepted to match the development tooling. Install dependencies separately on each computer so npm selects that system's native packages.
+## 💡 Good to know
 
-### Production server
+- Works best in a current desktop **Chrome, Edge or Safari**.
+- 3D perspective and depth blur need **WebGL**. Without it you get a simple flat view.
+- Very large exports can run out of memory. If that happens, choose a smaller size.
 
-For a production server on any supported system:
+## 🏗️ Production build
 
 ```sh
 npm run build
 npm start
 ```
 
-Open [localhost:3000](http://localhost:3000). Use `npm start -- --port 3001` for a different port. Run `npm run build` again after changing source files. Publishing this repository to GitHub makes the source available; a public website requires a separate deployment.
+Use `npm start -- --port 3001` to choose a different port.
 
-## Using the studio
-
-- Use **Import** in either workspace for images or MP4, MOV and WebM videos. A video opens the Video workspace automatically and leaves your photo intact. Drag-and-drop, image paste and the media Library also work; screen recording is available in Library.
-- The header contains the project name, Photo/Video, Import and Export. Projects, Library and Settings open in centered dialogs. Settings contains appearance, preview quality, canvas and advanced controls. Existing recognizable bundled example documents are removed once; renamed or independently created projects remain.
-- The Properties controls share neutral light/dark surfaces. **Manual** focus lets you click the source to choose its sharp depth. **Auto** uses a marked detail or a useful default. **Depth blur** controls the strength. A tilted surface creates different near/far depths; a frontal plane remains evenly sharp.
-- **Camera** contains Zoom and rotation. Background, shadow and aspect ratio use the same compact controls. Fine cropping, focus precision and camera position live under Settings → Advanced. Ctrl/Cmd + drag rotates; Ctrl/Cmd + scroll zooms.
-- **Animate camera** opens visual choices for **Macro glide**, **Focus pull** and **Hero reveal**. Creating motion from a photo makes a four-to-six-second clip. Applying motion to a video preserves its existing length, source trim, text, logos and transition.
-- In Video, **Clip**, **Design** and **Layers** separate common edits from effects. Drag clips to reorder, trim from either edge, and use **Split** or Ctrl/Cmd B at the playhead. Split clips retain source timing, eased camera motion and text-animation progress. **Fit** resets the timeline zoom.
-- Click the transition symbol between clips for **None**, **Dissolve**, **Slide**, **Zoom**, **Wipe** or **Blur**. Animated tiles show each effect; the duration control and Preview button operate on the actual clips. Camera diamonds select positions for advanced easing edits.
-- Export opens a composition preview alongside resolution, format and output options. PNG, HD/2K/4K/custom video, and 30/60 fps are supported subject to the browser encoder. Video output remains silent. Progress, cancellation, success and repeat download are available.
-- Projects autosave to this browser's IndexedDB. The project menu creates, renames, duplicates, switches, deletes, and imports/exports portable ZIP packages containing original media. Library downloads/deletes saved media and exports. Media used by a saved project cannot be deleted until its references are removed.
-
-## Architecture
-
-Next.js App Router, strict TypeScript, React, Tailwind and Tabler icons. The workspace uses Whirl's monochrome surface hierarchy, self-hosted Inter variable font, capsule choices and subtle motion. Design adaptations are isolated in `src/app/whirl.css`; `LICENSE.whirl.txt` retains the reference project's MIT notice and `public/fonts/OFL.txt` covers Inter. Browser-only modules load behind client boundaries.
-
-- `src/components/editor`: editor shell, stage, persistent shot sidebar, progressive inspector, timeline, export dialog, accessible controls.
-- `src/lib/studio`: versioned serializable documents, Zustand transactions/undo, deterministic camera/easing/transition evaluation, seeded local composition. Playback time is a separate observable, outside document history and autosave.
-- `src/lib/media`: original blobs, bounded runtime image/video sessions, SVG validation/rasterization, import metadata and thumbnails. Mediabunny decodes timestamped video canvases; the HTML video fallback waits for seeking/readiness.
-- `src/lib/render`: shared Three.js perspective renderer with original sRGB colors, geometry-based devices, one Three BokehPass depth pipeline with dense disk sampling and mipmapped sample footprints, cached projected soft shadows, and time-derived Canvas text/logo compositing. A normalized source focus point is transformed through the actual cropped surface and current camera matrix. Preview and export consume `evaluateProjectAtTime` and this renderer at their native resolutions; blur radius is proportional to output height.
-- `src/lib/export`: lazy PNG and Mediabunny/WebCodecs frame-by-frame video export, support checks, backpressure, cancellation, and honest real-time MediaRecorder fallback.
-- `src/lib/storage`: IndexedDB documents and separate media blobs; validated ZIP packages with remapped asset IDs and atomic import.
-
-Incoming transitions overlap the previous scene by their requested duration, capped at half of each scene. Cuts do not overlap. The same spans determine timeline length, scrubbing, playback, and export. Rotations follow the shortest arc. Camera changes in an animated scene update a selected position or capture a position at the playhead.
-
-The stage renders when changed or playing. Preview DPR is capped at 1.5; Draft lowers preview quality without changing export quality. Media, textures, and device geometry are reused and disposed when no longer active. Exports use independent rendering/decoding sessions, preserving the editor composition on completion, failure, or cancellation.
-
-## Browser and hardware boundaries
-
-- Use a current desktop Chrome, Edge, or Safari. Recording needs localhost/HTTPS and user permission in the browser's source picker. Recording captures visual content without audio; cursor behavior follows the browser. Cancelling the picker leaves the editor usable.
-- File extension does not guarantee codec support. MP4/MOV/WebM must contain a codec the browser or decoder can read. Unsupported files get a readable error. SVG logos are rasterized after rejecting active content/external resources; GIFs are imported as still images with a visible note.
-- Video exports are **silent**. MP4 is preferred when AVC encoding supports the selected size/fps; WebM is otherwise used with the proper extension. If only MediaRecorder is available, the dialog explicitly labels real-time mode and variable frame-rate behavior.
-- Devices are recognizable simplified geometry, not photorealistic licensed Apple models. Shadows are projected soft silhouettes. Bokeh blur uses actual surface depth. Draft disables preview DOF; final exports retain it.
-- PNG supports alpha, including soft shadows and blur. Video uses the scene's color to flatten a transparent background. Export dimensions retain the chosen aspect ratio, with even dimensions for video.
-- GPU texture/renderbuffer limits, canvas size, available RAM, and encoder limits depend on hardware/browser. Full-quality exports and in-memory ZIP/video output may exhaust memory on very large projects. Choose smaller dimensions if needed; there is no artificial clip-length quota. ZIP imports have a 2 GiB decompression safety bound.
-- Without WebGL the studio explicitly provides a reduced flat view. Perspective, devices, and DOF require WebGL. Clearing browser storage removes locally saved projects; download project packages as portable backups.
-
-## Checks
+## 🧪 Development
 
 ```sh
-npm run typecheck
-npm run lint
-npm test
-npm run build
-node scripts/check-server.mjs
+npm run typecheck   # TypeScript
+npm run lint        # ESLint
+npm test            # Unit tests (Vitest)
+npm run format      # Prettier
 ```
 
-GitHub Actions runs these checks on Linux, Windows, macOS Apple Silicon, and macOS Intel with Node 24. It also checks the current editor in Chromium on each platform. The production smoke check starts and stops its own server on port 3100 and verifies the homepage and bundled media; `node scripts/check-server.mjs --browser` also runs the browser checks (install Chromium first). Check the [Actions results](https://github.com/leifiyoo/project-camera/actions) for the actual status; the presence of a workflow alone does not mean every platform has passed.
-
-As of 3 October 2026, `npm audit` reports five high-severity development-dependency entries, all from the same [unpatched `braces` advisory](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm) through Next.js's ESLint configuration. The suggested forced downgrade would replace the current Next.js lint tooling with version 14 and is not applied. This is tracked as an upstream dependency limitation.
-
-The focused tests cover timeline overlaps/duration, rendered transition state, trim/loop timing, shortest rotations, easing, reproducible composition, gesture undo, image-only legacy-project migration, source preservation, Focus Pull, export dimensions, and IndexedDB/ZIP media roundtrip. Browser verification artifacts are in `verification/`; see its reports for the actual checks performed. A screen-capture permission picker requires a manual user selection and is not claimed as an automated recording test. Safari's codecs and screen recording still depend on the browser and macOS version; a successful macOS build does not verify every Safari media feature.
-
-For a smoke check of the current editor, keep the dev or production server running and run:
+Browser smoke test (with the dev server running):
 
 ```sh
 npx playwright install chromium
 npm run verify:startup
 ```
 
-This uses an isolated browser to check first launch, photo import, native HD PNG export, persistence after reload, and photo/video switching. It writes `verification/release-startup-report.json` and local PNG artifacts. `STUDIO_URL` selects another running server; `STUDIO_BROWSER_PATH` selects an installed Chromium executable.
+CI runs these checks on Linux, Windows and macOS. See the [Actions results](https://github.com/leifiyoo/project-camera/actions).
 
-The historical browser helper creates its own clip/logo fixtures and a temporary browser context. Its selectors target earlier editor controls; historical UI acceptance is documented in `design-qa.md`:
+<details>
+<summary><b>Project structure</b></summary>
 
-```sh
-npx playwright install chromium
-npm run verify:browser
-```
+Built with Next.js, TypeScript, React, Tailwind, Three.js and Zustand.
 
-Keep the dev server running first. `STUDIO_URL` can select another local server and `STUDIO_BROWSER_PATH` can select an already installed Chromium executable. `npm run format` formats source files.
+| Folder                  | What's inside                                      |
+| ----------------------- | -------------------------------------------------- |
+| `src/components/editor` | Editor UI: stage, sidebar, timeline, export dialog |
+| `src/lib/studio`        | Project documents, undo, camera and easing logic   |
+| `src/lib/media`         | Image/video import, thumbnails, SVG sanitizing     |
+| `src/lib/render`        | Three.js renderer with depth blur and shadows      |
+| `src/lib/export`        | PNG and video export                               |
+| `src/lib/storage`       | IndexedDB storage and ZIP import/export            |
 
-The focused photographic acceptance pass is `node scripts/verify-macro.mjs`. It uploads a flat local UI, exports DOF-off/left/right PNGs through the real editor, checks unchanged composition and reload, and exports/plays a short Macro Glide. `node scripts/compare-macro.mjs` lays out the generated PNGs beside the supplied reference. The reference is only a comparison artifact; the studio renders an unwarped source asset.
+More test reports and screenshots are in [`verification/`](verification/) and [`design-qa.md`](design-qa.md).
 
-The current compact-sidebar acceptance pass is recorded in `design-qa.md` with screenshots in `verification/`. It covers rounded translucent menus, mouse scrubbing and undo, transparent image import, separate precision settings, animation playback, Inter in portaled controls, and desktop/mobile layout. `scripts/verify-redesign.mjs` is an older browser harness and retains selectors for removed controls.
+</details>
 
-Bundled demo interfaces are original project assets. Their license is in `public/demos/LICENSE.txt`. Dependencies retain their respective licenses (including Three.js MIT and Mediabunny MPL-2.0).
+## 📄 License
 
-The Paper Segmented Control and its `cn` helper are copied directly from the local `coss-main/coss-main/packages/ui/src` source, rather than installed through its registry. The component is in `src/components/ui/paper-segmented-control.tsx`; its behavior, original dark palette, Inter typography and derived 14/10-pixel corners are preserved. Only its helper import and explanatory lint comments are adapted. The copied source's AGPL-3.0-or-later license is preserved in `src/components/ui/LICENSE.coss-ui.txt`. Base UI, clsx and tailwind-merge provide its underlying dependencies.
+[GPL-3.0](LICENSE)
+
+Third-party notices:
+
+- Whirl design reference: MIT, see [`LICENSE.whirl.txt`](LICENSE.whirl.txt)
+- Inter font: OFL, see [`public/fonts/OFL.txt`](public/fonts/OFL.txt)
+- Demo images: see [`public/demos/LICENSE.txt`](public/demos/LICENSE.txt)
+- Paper Segmented Control (copied from coss-ui): AGPL-3.0-or-later, see [`src/components/ui/LICENSE.coss-ui.txt`](src/components/ui/LICENSE.coss-ui.txt)
+- Dependencies keep their own licenses (e.g. Three.js MIT, Mediabunny MPL-2.0)
