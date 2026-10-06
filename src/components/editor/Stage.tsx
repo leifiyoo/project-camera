@@ -10,6 +10,7 @@ import {
   cameraAtTime,
 } from '@/lib/studio/evaluate';
 import { clamp } from '@/lib/studio/model';
+import { textBounds } from '@/lib/render/overlays';
 import type { StudioRenderer } from '@/lib/render/engine';
 import type { Asset } from '@/lib/studio/model';
 import type { MediaTarget } from './Inspector';
@@ -17,7 +18,6 @@ import QuickAccessBar, { type CanvasTool as Tool } from './QuickAccessBar';
 export default function Stage({
   quality,
   focusRequest,
-  onLayers,
   assets,
   onImport,
   onPickFocus,
@@ -27,7 +27,6 @@ export default function Stage({
 }: {
   quality: 'high' | 'draft';
   focusRequest: number;
-  onLayers: () => void;
   assets: Asset[];
   onImport: (target: MediaTarget) => void;
   onPickFocus: () => void;
@@ -45,10 +44,14 @@ export default function Stage({
   const [loading, setLoading] = useState(true);
   const [reduced, setReduced] = useState(false);
   const [size, setSize] = useState({ width: 900, height: 506 });
-  const [region, setRegion] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
   const scene = useStudio(selectedScene);
   const output = useStudio((s) => s.project?.output);
   const layerId = useStudio((s) => s.layerId);
+  const selectedLayer = scene?.layers.find((l) => l.id === layerId);
+  const selectedText =
+    selectedLayer?.kind === 'text' && !locked
+      ? textBounds(selectedLayer, size.width, size.height)
+      : null;
   const manualFocus = !!scene && !scene.pose.autoFocus;
   const tool = requestedTool === 'focus' && !manualFocus ? 'move' : requestedTool;
   const drag = useRef<{
@@ -64,7 +67,6 @@ export default function Stage({
     focusCandidate: boolean;
     moved: boolean;
     kind: Tool;
-    point: { x: number; y: number } | null;
   } | null>(null);
   const qualityRef = useRef(quality);
   const lockedRef = useRef(locked);
@@ -242,11 +244,9 @@ export default function Stage({
   };
   return (
     <section className="stage-wrap" ref={wrap} aria-label="Composition studio">
-      {(tool === 'point' || tool === 'rotate') && (
+      {tool === 'rotate' && (
         <div className="focus-tool-hint" role="status">
-          {tool === 'point'
-            ? 'Click or drag on the surface to mark a detail'
-            : 'Drag your subject to rotate, or enter exact angles'}
+          Drag your subject to rotate, or enter exact angles
         </div>
       )}
       <div className="artboard checker" style={{ width: size.width, height: size.height }}>
@@ -260,22 +260,24 @@ export default function Stage({
             const p = point(e);
             const hit = engine.current?.hitTest(p.x, p.y) || null;
             const kind = e.ctrlKey || e.metaKey ? 'rotate' : tool;
-            const selected = scene.layers.find((l) => l.id === layerId);
-            if (kind === 'move' && !selected) {
-              const found = [...scene.layers].reverse().find((l) => {
-                if (l.kind === 'logo')
-                  return Math.abs(p.x - l.x) < l.width / 2 && Math.abs(p.y - l.y) < l.width / 2;
-                return (
-                  p.y >= l.y &&
-                  p.y < l.y + l.size * 1.4 * l.text.split('\n').length &&
-                  Math.abs(p.x - l.x) < l.width / 2
-                );
-              });
-              if (found) {
-                useStudio.getState().selectLayer(found.id);
-                return;
-              }
-            }
+            // Each press picks its own target: a layer under the pointer, otherwise the image.
+            const selected =
+              kind === 'move'
+                ? [...scene.layers].reverse().find((l) => {
+                    if (l.kind === 'logo')
+                      return Math.abs(p.x - l.x) < l.width / 2 && Math.abs(p.y - l.y) < l.width / 2;
+                    const box = textBounds(l, size.width, size.height);
+                    const pad = 0.01;
+                    return (
+                      p.x >= box.x - pad &&
+                      p.x <= box.x + box.w + pad &&
+                      p.y >= box.y - pad &&
+                      p.y <= box.y + box.h + pad
+                    );
+                  })
+                : undefined;
+            if ((selected?.id ?? null) !== layerId)
+              useStudio.getState().selectLayer(selected?.id ?? null);
             if (!hit && !selected) return;
             runtime.set({ playing: false });
             const state = useStudio.getState();
@@ -311,9 +313,7 @@ export default function Stage({
                 !e.altKey,
               moved: false,
               kind,
-              point: hit,
             };
-            if (kind === 'point') setRegion({ x: p.x, y: p.y, w: 0, h: 0 });
           }}
           onPointerMove={(e) => {
             const d = drag.current;
@@ -322,11 +322,6 @@ export default function Stage({
             const dx = (e.clientX - d.x) / size.width,
               dy = (e.clientY - d.y) / size.height;
             const state = useStudio.getState();
-            if (d.kind === 'point') {
-              const p = point(e);
-              setRegion((r) => (r ? { ...r, w: p.x - r.x, h: p.y - r.y } : null));
-              return;
-            }
             // A click in MF chooses focus; small pointer jitter must neither pan
             // the camera nor create an extra undo entry before that click.
             if (!d.moved) return;
@@ -366,27 +361,11 @@ export default function Stage({
                   pose.autoFocus = false;
                 });
             }
-            if (d?.kind === 'point' && d.point) {
-              const p = point(e);
-              const end = engine.current?.hitTest(p.x, p.y) || d.point;
-              const w = Math.abs(end.x - d.point.x),
-                h = Math.abs(end.y - d.point.y);
-              useStudio.getState().editScene((s) => {
-                s.points.push({
-                  x: (d.point!.x + end.x) / 2,
-                  y: (d.point!.y + end.y) / 2,
-                  w: w || 0.16,
-                  h: h || 0.16,
-                });
-              });
-            }
             drag.current = null;
-            setRegion(null);
             useStudio.getState().commit();
           }}
           onPointerCancel={() => {
             drag.current = null;
-            setRegion(null);
             useStudio.getState().commit();
           }}
         />
@@ -420,14 +399,15 @@ export default function Stage({
             }}
           />
         </div>
-        {region && (
+        {selectedText && (
           <div
-            className="region-guide"
+            className="layer-outline"
+            aria-hidden="true"
             style={{
-              left: `${Math.min(region.x, region.x + region.w) * 100}%`,
-              top: `${Math.min(region.y, region.y + region.h) * 100}%`,
-              width: `${Math.abs(region.w) * 100}%`,
-              height: `${Math.abs(region.h) * 100}%`,
+              left: `${selectedText.x * 100}%`,
+              top: `${selectedText.y * 100}%`,
+              width: `${selectedText.w * 100}%`,
+              height: `${selectedText.h * 100}%`,
             }}
           />
         )}
@@ -444,7 +424,6 @@ export default function Stage({
           onPickFocus={onPickFocus}
           tool={tool}
           onToolChange={setTool}
-          onLayers={onLayers}
           onFit={fit}
           onReset={() =>
             useStudio
@@ -463,12 +442,7 @@ export default function Stage({
       )}
       <div className="stage-caption">
         <MousePointer2 size={12} />
-        <span>
-          {layerId ? 'Selected layer · drag to position' : scene?.name || 'Your canvas'}
-          {scene?.points.length
-            ? ` · ${scene.points.length} marked detail${scene.points.length > 1 ? 's' : ''}`
-            : ''}
-        </span>
+        <span>{layerId ? 'Selected layer · drag to position' : scene?.name || 'Your canvas'}</span>
       </div>
       {reduced && (
         <div className="reduced-notice">

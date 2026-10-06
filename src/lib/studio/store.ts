@@ -1,6 +1,16 @@
 import { create } from 'zustand';
 import { produce } from 'immer';
-import { clone, uid, clamp, type Project, type Scene, type Layer, type CameraPose } from './model';
+import {
+  clone,
+  uid,
+  clamp,
+  makeLogo,
+  type Project,
+  type Scene,
+  type Layer,
+  type CameraPose,
+  type LogoPosition,
+} from './model';
 import { cameraAtTime, timelineSpans, totalDuration } from './evaluate';
 import { runtime } from './runtime';
 type State = {
@@ -50,6 +60,28 @@ export const useStudio = create<State>((set, get) => ({
       scene.focusWidth ??= 0.12;
       scene.dofEnabled ??= true;
       scene.maxBlur ??= 0.7;
+      // Free-floating logo layers became the anchored logo; keep the first one.
+      const legacy = scene.logo ? undefined : scene.layers.find((l) => l.kind === 'logo');
+      if (legacy?.kind === 'logo') {
+        const third = (v: number, low: string, high: string) =>
+          v < 1 / 3 ? low : v > 2 / 3 ? high : 'center';
+        const row = third(legacy.y, 'top', 'bottom'),
+          column = third(legacy.x, 'left', 'right');
+        scene.logo = {
+          ...makeLogo(),
+          enabled: true,
+          kind: 'image',
+          assetId: legacy.assetId,
+          size: legacy.width,
+          opacity: legacy.opacity,
+          position: (row === 'center'
+            ? column
+            : column === 'center'
+              ? row
+              : `${row}-${column}`) as LogoPosition,
+        };
+        scene.layers = scene.layers.filter((l) => l.id !== legacy.id);
+      }
     }
     set({
       project,

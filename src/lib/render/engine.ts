@@ -361,6 +361,8 @@ export class StudioRenderer {
         }
       }
       for (const l of scene.layers) if (l.kind === 'logo') used.add(l.assetId);
+      if (scene.logo?.enabled && scene.logo.kind === 'image' && scene.logo.assetId)
+        used.add(scene.logo.assetId);
       await drawOverlays(ctx, scene, layer.localTime, w, h, this.media, state.still);
       this.ctx.save();
       this.ctx.globalAlpha = layer.opacity;

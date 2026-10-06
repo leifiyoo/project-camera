@@ -90,6 +90,32 @@ export type LogoLayer = {
   end: number;
 };
 export type Layer = TextLayer | LogoLayer;
+export type LogoPosition =
+  | 'top-left'
+  | 'top'
+  | 'top-right'
+  | 'left'
+  | 'center'
+  | 'right'
+  | 'bottom-left'
+  | 'bottom'
+  | 'bottom-right';
+/** A single watermark anchored to the canvas edge, either an image or a short text. */
+export type Logo = {
+  enabled: boolean;
+  kind: 'image' | 'text';
+  assetId?: string;
+  text: string;
+  font: TextLayer['font'];
+  weight: number;
+  color: string;
+  position: LogoPosition;
+  /** Image width as a fraction of the canvas width; text uses a proportional font size. */
+  size: number;
+  opacity: number;
+  /** Distance from the canvas edge as a fraction of its shorter side. */
+  margin: number;
+};
 export type Scene = {
   id: string;
   name: string;
@@ -110,6 +136,7 @@ export type Scene = {
   shadow: 'off' | 'small' | 'medium' | 'large';
   shadowIntensity: number;
   layers: Layer[];
+  logo?: Logo;
   keyframes: Keyframe[];
   transition: { kind: 'cut' | 'fade' | 'push' | 'zoom' | 'wipe' | 'blur'; duration: number };
   points: (Vec2 & { w: number; h: number })[];
@@ -198,6 +225,20 @@ export function makeText(text = 'Text'): TextLayer {
     opacity: 1,
   };
 }
+export function makeLogo(): Logo {
+  return {
+    enabled: false,
+    kind: 'text',
+    text: 'Your brand',
+    font: 'Inter',
+    weight: 600,
+    color: '#17181b',
+    position: 'bottom-right',
+    size: 0.12,
+    opacity: 0.9,
+    margin: 0.05,
+  };
+}
 export function makeProject(asset?: Asset): Project {
   const now = Date.now();
   const photo = makeScene(asset);
@@ -218,6 +259,7 @@ export function referencedAssetIds(project: Project): string[] {
     if (s.assetId) ids.add(s.assetId);
     if (s.background.assetId) ids.add(s.background.assetId);
     for (const l of s.layers) if (l.kind === 'logo') ids.add(l.assetId);
+    if (s.logo?.assetId) ids.add(s.logo.assetId);
   }
   return [...ids];
 }

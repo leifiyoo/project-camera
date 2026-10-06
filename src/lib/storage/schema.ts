@@ -45,6 +45,29 @@ const logo = z.object({
   start: num.min(0),
   end: num.min(0),
 });
+const watermark = z.object({
+  enabled: z.boolean(),
+  kind: z.enum(['image', 'text']),
+  assetId: id.optional(),
+  text: z.string().max(500),
+  font: z.enum(['Inter', 'Arial', 'Georgia', 'monospace']),
+  weight: num.min(100).max(900),
+  color,
+  position: z.enum([
+    'top-left',
+    'top',
+    'top-right',
+    'left',
+    'center',
+    'right',
+    'bottom-left',
+    'bottom',
+    'bottom-right',
+  ]),
+  size: num.min(0.005).max(1),
+  opacity: num.min(0).max(1),
+  margin: num.min(0).max(0.5),
+});
 const scene = z.object({
   id,
   name: z.string().max(500),
@@ -85,6 +108,7 @@ const scene = z.object({
   shadow: z.enum(['off', 'small', 'medium', 'large']),
   shadowIntensity: num.min(0).max(1),
   layers: z.array(z.discriminatedUnion('kind', [text, logo])),
+  logo: watermark.optional(),
   keyframes: z.array(
     z.object({
       id,

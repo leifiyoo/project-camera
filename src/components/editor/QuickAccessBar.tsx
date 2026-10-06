@@ -6,7 +6,7 @@ import type { Asset } from '@/lib/studio/model';
 import Inspector, { type InspectorKind, type MediaTarget } from './Inspector';
 import { UIIcon, type UIIconName } from './UIIcon';
 
-export type CanvasTool = 'move' | 'rotate' | 'point' | 'focus';
+export type CanvasTool = 'move' | 'rotate' | 'focus';
 
 export default function QuickAccessBar({
   assets,
@@ -14,7 +14,6 @@ export default function QuickAccessBar({
   onPickFocus,
   tool,
   onToolChange,
-  onLayers,
   onFit,
   onReset,
   disabled,
@@ -24,7 +23,6 @@ export default function QuickAccessBar({
   onPickFocus: () => void;
   tool: CanvasTool;
   onToolChange: (tool: CanvasTool) => void;
-  onLayers: () => void;
   onFit: () => void;
   onReset: () => void;
   disabled: boolean;
@@ -156,21 +154,6 @@ export default function QuickAccessBar({
             <DropdownMenu.Item className="paper-menu-item" onSelect={onReset}>
               <UIIcon name="move" />
               <span>Reset view</span>
-            </DropdownMenu.Item>
-            <DropdownMenu.Separator className="paper-menu-separator" />
-            <DropdownMenu.Item
-              className="paper-menu-item"
-              onSelect={() => {
-                setOpen(null);
-                onToolChange('point');
-              }}
-            >
-              <UIIcon name="point" />
-              <span>Mark a detail for animation</span>
-            </DropdownMenu.Item>
-            <DropdownMenu.Item className="paper-menu-item" onSelect={onLayers}>
-              <UIIcon name="layers" />
-              <span>Layers and scene settings</span>
             </DropdownMenu.Item>
           </DropdownMenu.Content>
         </DropdownMenu.Portal>

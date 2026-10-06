@@ -75,17 +75,13 @@ const aspectPresets = [
   { value: '3:1', label: '3:1 · Banner' },
   { value: '21:9', label: '21:9 · Wide' },
 ] as const;
-const backgroundPresets = [
-  { name: 'Paper', kind: 'color', color: '#f4f4f5' },
-  { name: 'White', kind: 'color', color: '#ffffff' },
-  { name: 'Graphite', kind: 'color', color: '#18181b' },
-  { name: 'Sand', kind: 'gradient', color: '#f6f1e7', color2: '#e3d5bd' },
-  { name: 'Mist', kind: 'gradient', color: '#e0eafc', color2: '#cfdef3' },
-  { name: 'Sunset', kind: 'gradient', color: '#ff9a8b', color2: '#ff6a88' },
-  { name: 'Ocean', kind: 'gradient', color: '#2e3192', color2: '#1bffff' },
-  { name: 'Mint', kind: 'gradient', color: '#d4fc79', color2: '#96e6a1' },
-  { name: 'Violet', kind: 'gradient', color: '#a18cd1', color2: '#fbc2eb' },
-  { name: 'Night', kind: 'gradient', color: '#0f2027', color2: '#2c5364' },
+/** A short row of gradient starting points; solid colors live in the color picker. */
+const gradientPresets = [
+  { name: 'Mist', color: '#e0eafc', color2: '#cfdef3' },
+  { name: 'Sand', color: '#f6f1e7', color2: '#e3d5bd' },
+  { name: 'Sunset', color: '#ff9a8b', color2: '#ff6a88' },
+  { name: 'Violet', color: '#a18cd1', color2: '#fbc2eb' },
+  { name: 'Night', color: '#0f2027', color2: '#2c5364' },
 ] as const;
 function PoseFields({
   pose,
@@ -194,70 +190,51 @@ export default function Inspector({
   const editPose = state.editCamera;
   const background = (
     <>
-      <Field label="Background">
-        <Select
-          value={scene.background.kind}
-          onValueChange={(value) =>
-            edit((s) => {
-              s.background.kind = value as typeof s.background.kind;
-              if (value === 'gradient' && !s.background.color2) {
-                s.background.color = '#e0eafc';
-                s.background.color2 = '#cfdef3';
-                s.background.angle = 135;
+      <PaperSegmentedControl
+        className="background-kind-switch"
+        size="sm"
+        fullWidth
+        aria-label="Background type"
+        value={scene.background.kind}
+        onValueChange={(value) =>
+          edit((s) => {
+            s.background.kind = value as typeof s.background.kind;
+            if (value === 'gradient' && !s.background.color2) {
+              s.background.color = '#e0eafc';
+              s.background.color2 = '#cfdef3';
+              s.background.angle = 135;
+            }
+          })
+        }
+        options={[
+          { value: 'color', label: 'Solid' },
+          { value: 'gradient', label: 'Gradient' },
+          { value: 'image', label: 'Image' },
+          { value: 'transparent', label: 'None', 'aria-label': 'Transparent' },
+        ]}
+      />
+      {scene.background.kind === 'gradient' && (
+        <div className="gradient-presets" role="group" aria-label="Gradient presets">
+          {gradientPresets.map((preset) => (
+            <button
+              key={preset.name}
+              type="button"
+              title={preset.name}
+              aria-label={`${preset.name} gradient`}
+              aria-pressed={
+                scene.background.color.toLowerCase() === preset.color &&
+                (scene.background.color2 || '').toLowerCase() === preset.color2
               }
-            })
-          }
-        >
-          <SelectOption value="color" icon="color">
-            Solid color
-          </SelectOption>
-          <SelectOption value="gradient" icon="color">
-            Gradient
-          </SelectOption>
-          <SelectOption value="image" icon="image">
-            Image
-          </SelectOption>
-          <SelectOption value="transparent" icon="surface">
-            Transparent
-          </SelectOption>
-        </Select>
-      </Field>
-      {(scene.background.kind === 'color' || scene.background.kind === 'gradient') && (
-        <div className="background-presets" role="group" aria-label="Background presets">
-          {backgroundPresets.map((preset) => {
-            const active =
-              scene.background.kind === preset.kind &&
-              scene.background.color.toLowerCase() === preset.color &&
-              (preset.kind === 'color' ||
-                (scene.background.color2 || '').toLowerCase() === preset.color2);
-            return (
-              <button
-                key={preset.name}
-                type="button"
-                title={preset.name}
-                aria-label={`${preset.name} background`}
-                aria-pressed={active}
-                style={{
-                  background:
-                    preset.kind === 'gradient'
-                      ? `linear-gradient(135deg, ${preset.color}, ${preset.color2})`
-                      : preset.color,
-                }}
-                onClick={() => {
-                  state.begin();
-                  edit((s) => {
-                    s.background.kind = preset.kind;
-                    s.background.color = preset.color;
-                    if (preset.kind === 'gradient') {
-                      s.background.color2 = preset.color2;
-                      s.background.angle ??= 135;
-                    }
-                  });
-                  state.commit();
-                }}
-              />
-            );
-          })}
+              style={{ background: `linear-gradient(135deg, ${preset.color}, ${preset.color2})` }}
+              onClick={() =>
+                edit((s) => {
+                  s.background.color = preset.color;
+                  s.background.color2 = preset.color2;
+                  s.background.angle ??= 135;
+                })
+              }
+            />
+          ))}
         </div>
       )}
       {scene.background.kind === 'color' && (

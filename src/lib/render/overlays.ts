@@ -1,7 +1,19 @@
-import type { Scene, TextLayer } from '../studio/model';
+import type { Logo, Scene, TextLayer } from '../studio/model';
 import { clamp } from '../studio/model';
 import { MediaSession } from '../media/pool';
 type Ctx = CanvasRenderingContext2D;
+let measurer: Ctx | null = null;
+/** The drawn area of a text layer, in canvas fractions, for hit testing and outlines. */
+export function textBounds(l: TextLayer, w: number, h: number) {
+  measurer ??= document.createElement('canvas').getContext('2d')!;
+  const size = l.size * h;
+  measurer.font = `${l.weight} ${size}px ${l.font}`;
+  const lines = wrap(measurer, l.text, l.width * w);
+  const width = Math.max(size * 0.5, ...lines.map((line) => measurer!.measureText(line).width));
+  const left =
+    l.align === 'left' ? l.x * w : l.align === 'right' ? l.x * w - width : l.x * w - width / 2;
+  return { x: left / w, y: l.y, w: width / w, h: (lines.length * size * 1.25) / h };
+}
 function wrap(ctx: Ctx, text: string, maxWidth: number) {
   const lines: string[] = [];
   for (const paragraph of text.split('\n')) {
@@ -69,6 +81,40 @@ function text(ctx: Ctx, l: TextLayer, time: number, w: number, h: number) {
     }
   ctx.restore();
 }
+/** Top-left corner for a box anchored to one of the nine canvas positions. */
+export function anchorBox(logo: Logo, boxW: number, boxH: number, w: number, h: number) {
+  const m = logo.margin * Math.min(w, h);
+  const [vertical, horizontal] = logo.position.includes('-')
+    ? logo.position.split('-')
+    : logo.position === 'top' || logo.position === 'bottom'
+      ? [logo.position, 'center']
+      : ['center', logo.position];
+  const x = horizontal === 'left' ? m : horizontal === 'right' ? w - m - boxW : (w - boxW) / 2;
+  const y = vertical === 'top' ? m : vertical === 'bottom' ? h - m - boxH : (h - boxH) / 2;
+  return { x, y };
+}
+export const logoFontSize = (logo: Logo, w: number) => logo.size * w * 0.3;
+async function drawLogo(ctx: Ctx, logo: Logo, w: number, h: number, media: MediaSession) {
+  ctx.save();
+  ctx.globalAlpha = logo.opacity;
+  if (logo.kind === 'image') {
+    if (!logo.assetId) return ctx.restore();
+    const { source, record } = await media.get(logo.assetId);
+    const width = logo.size * w,
+      height = (width * record.meta.height) / record.meta.width;
+    const { x, y } = anchorBox(logo, width, height, w, h);
+    ctx.drawImage(source, x, y, width, height);
+  } else if (logo.text.trim()) {
+    const size = logoFontSize(logo, w);
+    ctx.font = `${logo.weight} ${size}px ${logo.font}`;
+    ctx.fillStyle = logo.color;
+    ctx.textBaseline = 'top';
+    ctx.textAlign = 'left';
+    const { x, y } = anchorBox(logo, ctx.measureText(logo.text).width, size, w, h);
+    ctx.fillText(logo.text, x, y);
+  }
+  ctx.restore();
+}
 export async function drawOverlays(
   ctx: Ctx,
   scene: Scene,
@@ -90,6 +136,7 @@ export async function drawOverlays(
       ctx.restore();
     }
   }
+  if (scene.logo?.enabled) await drawLogo(ctx, scene.logo, w, h, media);
 }
 export function drawFitted(
   ctx: Ctx,
