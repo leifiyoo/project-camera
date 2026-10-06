@@ -90,16 +90,10 @@ body,
   background: var(--surface2);
   color: var(--text);
 }
-.project-trigger[aria-expanded='true'] svg {
-  transform: rotate(180deg);
-}
-.project-trigger svg {
-  transition: transform var(--motion-quick) ease;
-}
 .topbar-right {
   gap: 8px;
 }
-.topbar .header-import,
+.topbar .save-button,
 .topbar .export-button {
   display: inline-flex;
   align-items: center;
@@ -111,13 +105,6 @@ body,
   font-size: 12px;
   font-weight: 550;
   line-height: 1;
-}
-.topbar .header-import {
-  background: var(--surface);
-  border: 1px solid var(--line);
-}
-.topbar .header-import:hover:not(:disabled) {
-  background: var(--surface2);
 }
 .topbar .export-button,
 button.primary,
@@ -136,43 +123,132 @@ button.compose-primary {
   height: 34px;
   border-radius: 8px;
 }
-[data-slot='paper-segmented-control'] {
-  --paper-segment-font: var(--font-studio), system-ui, sans-serif;
-  --paper-segment-background: var(--surface2);
-  --paper-segment-active: var(--surface);
-  --paper-segment-foreground: var(--text);
-  --paper-segment-muted: var(--muted);
-  --paper-segment-focus: var(--accent);
-  --paper-segment-radius: 9px;
-  --paper-segment-inset: 3px;
-  --paper-segment-item-height: 28px;
-  gap: 0;
+[data-slot='segmented-control'] {
+  --segment-background: var(--surface2);
+  --segment-active: var(--surface);
+  --segment-foreground: var(--text);
+  --segment-muted: var(--muted);
+  --segment-focus: var(--accent);
+  --segment-radius: 9px;
+  --segment-inset: 3px;
+  --segment-item-height: 28px;
+  --segment-item-padding: 8px;
+  position: relative;
+  isolation: isolate;
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  max-width: 100%;
+  padding: var(--segment-inset);
+  overflow-x: auto;
+  scrollbar-width: none;
+  border-radius: var(--segment-radius);
+  background: var(--segment-background);
 }
-[data-slot='paper-segment'] {
+[data-slot='segmented-control']::-webkit-scrollbar {
+  display: none;
+}
+[data-slot='segmented-control'][data-size='sm'] {
+  --segment-item-height: 24px;
+  --segment-item-padding: 6px;
+}
+[data-slot='segmented-control'][data-full-width] {
+  display: flex;
+  width: 100%;
+}
+[data-slot='segmented-control'][aria-disabled='true'] {
+  opacity: 0.5;
+}
+[data-slot='segment'] {
+  position: relative;
+  display: inline-flex;
+  flex: 1 0 0;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: var(--segment-item-height);
+  padding: 0 var(--segment-item-padding);
+  border: 0;
+  border-radius: var(
+    --segment-inner-radius,
+    max(0px, calc(var(--segment-radius) - var(--segment-inset)))
+  );
+  outline: none;
+  color: var(--segment-muted);
+  background: transparent;
   font-family: var(--font-studio), sans-serif;
   font-size: 12px;
   font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.2s;
 }
-[data-slot='paper-segment-indicator'] {
+[data-slot='segment'][aria-checked='true'] {
+  color: var(--segment-foreground);
+  background: var(--segment-active);
+}
+[data-indicator-ready] > [data-slot='segment'] {
+  background: transparent;
+}
+[data-slot='segment'][aria-checked='false']:hover:not(:disabled) {
+  color: var(--segment-foreground);
+}
+[data-slot='segment']:focus-visible {
+  outline: 2px solid var(--segment-focus);
+  outline-offset: -2px;
+}
+[data-slot='segment']:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+[data-slot='segment'] .segment-icon {
+  display: inline-flex;
+}
+[data-slot='segment'] svg {
+  width: 16px;
+  height: 16px;
+  pointer-events: none;
+}
+[data-slot='segment-indicator'] {
+  position: absolute;
+  top: 0;
+  left: 0;
+  border-radius: var(
+    --segment-inner-radius,
+    max(0px, calc(var(--segment-radius) - var(--segment-inset)))
+  );
+  background: var(--segment-active);
   box-shadow: 0 1px 3px #2020200b;
+  pointer-events: none;
+  transition:
+    transform 0.2s ease-out,
+    width 0.2s ease-out,
+    height 0.2s ease-out;
 }
-.workspace-mode[data-slot='paper-segmented-control'] {
-  --paper-segment-inset: 3px;
-  --paper-segment-item-height: 28px;
-  --paper-segment-item-padding: 18px;
+@media (prefers-reduced-motion: reduce) {
+  [data-slot='segment'],
+  [data-slot='segment-indicator'] {
+    transition: none;
+  }
+}
+.workspace-mode[data-slot='segmented-control'] {
+  --segment-inset: 3px;
+  --segment-item-height: 28px;
+  --segment-item-padding: 18px;
   min-width: 160px;
   gap: 0;
 }
-.workspace-mode [data-slot='paper-segment'] {
+.workspace-mode [data-slot='segment'] {
   min-width: 76px;
   font-weight: 550;
 }
-.focus-mode-switch[data-slot='paper-segmented-control'] {
-  --paper-segment-item-height: 24px;
-  --paper-segment-radius: 8px;
-  --paper-segment-inset: 2px;
+.focus-mode-switch[data-slot='segmented-control'] {
+  --segment-item-height: 24px;
+  --segment-radius: 8px;
+  --segment-inset: 2px;
 }
-.focus-mode-switch [data-slot='paper-segment'] {
+.focus-mode-switch [data-slot='segment'] {
   font-size: 12px;
 }
 .workspace,
@@ -440,34 +516,6 @@ button.studio-select {
   border: 1px solid var(--line);
   box-shadow: none;
 }
-.project-list {
-  margin: 8px 0 18px;
-  border: 1px solid var(--line);
-  border-radius: 11px;
-  overflow: hidden;
-}
-.project-list > div {
-  padding: 7px 10px;
-  border-bottom: 1px solid var(--line);
-}
-.project-list > div:last-child {
-  border-bottom: 0;
-}
-.project-list > div.current {
-  background: var(--surface2);
-}
-.project-list > div > button:first-child {
-  padding: 9px 6px;
-  gap: 12px;
-}
-.project-list b {
-  font-size: 13px;
-  font-weight: 550;
-}
-.project-list small {
-  font-size: 11px;
-  margin-top: 4px;
-}
 .media-import-actions {
   gap: 10px;
   margin-bottom: 12px;
@@ -653,7 +701,7 @@ kbd {
   font-size: 11px;
   font-variant-numeric: tabular-nums;
 }
-.export-options > [data-slot='paper-segmented-control'] {
+.export-options > [data-slot='segmented-control'] {
   margin-bottom: 22px;
 }
 .export-settings .field > span {
@@ -1494,11 +1542,11 @@ button.transition-choice {
     grid-column: 2;
     gap: 5px;
   }
-  .topbar .header-import {
+  .topbar .save-button {
     width: 32px;
     padding: 0;
   }
-  .header-import span {
+  .topbar .save-button span {
     display: none;
   }
   .topbar .export-button {

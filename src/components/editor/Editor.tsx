@@ -3,10 +3,10 @@ import dynamic from 'next/dynamic';
 import { Theme } from '@radix-ui/themes';
 import { DropdownMenu } from 'radix-ui';
 import { UIIcon } from './UIIcon';
-import { PaperSegmentedControl } from '@/components/ui/paper-segmented-control';
+import { SegmentedControl } from '@/components/ui/segmented-control';
+import { BrandMark } from '@/components/ui/brand-mark';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  ChevronDown,
   Plus,
   FolderOpen,
   Undo2,
@@ -25,13 +25,10 @@ import {
   CircleCheck,
   Info,
   AlertCircle,
-  CloudCheck,
-  CloudUp,
-  CloudOff,
-  Clipboard,
+  Save as SaveIcon,
 } from '@/components/ui/studio-icons';
 import { VIDEO_MODE_ENABLED } from '@/lib/studio/features';
-import { useStudio, selectedScene } from '@/lib/studio/store';
+import { useStudio, selectedScene, hasUnsavedWork } from '@/lib/studio/store';
 import { runtime } from '@/lib/studio/runtime';
 import {
   clone,
@@ -39,12 +36,13 @@ import {
   makeProject,
   makeScene,
   makeLogo,
+  isEmptyProject,
   type Asset,
   type Layer,
   type Project,
   type Scene,
 } from '@/lib/studio/model';
-import { outputDimensions, timelineSpans } from '@/lib/studio/evaluate';
+import { timelineSpans } from '@/lib/studio/evaluate';
 import { composeScene, type Direction } from '@/lib/studio/compose';
 import {
   listAssets,
@@ -53,18 +51,17 @@ import {
   getProject,
   deleteProject,
   deleteAsset,
+  getWorkingCopy,
+  saveWorkingCopy,
   storageError,
 } from '@/lib/storage/db';
 import { cachedAssetMetas, resolveAsset, forgetAsset } from '@/lib/media/pool';
 import { ACCEPT, importMedia } from '@/lib/media/import';
 import { mediaFilename } from '@/lib/media/filename';
 import { download, filename } from '@/lib/export/download';
-import { Panel, IconButton, Field } from './primitives';
+import { Panel, IconButton } from './primitives';
 import Inspector, { type InspectorKind, type MediaTarget } from './Inspector';
 import ShotSidebar from './ShotSidebar';
-import VideoSidebar from './VideoSidebar';
-import Timeline from './Timeline';
-import WorkspaceSettings from './WorkspaceSettings';
 const Stage = dynamic(() => import('./Stage'), {
   ssr: false,
   loading: () => (
@@ -74,10 +71,16 @@ const Stage = dynamic(() => import('./Stage'), {
   ),
 });
 const ExportDialog = dynamic(() => import('./ExportDialog'), { ssr: false });
+// Video mode and Settings are opened on demand, so keep them out of the first load.
+const Timeline = dynamic(() => import('./Timeline'), { ssr: false });
+const VideoSidebar = dynamic(() => import('./VideoSidebar'), { ssr: false });
+const WorkspaceSettings = dynamic(() => import('./WorkspaceSettings'), { ssr: false });
+const SaveDialog = dynamic(() => import('./SaveDialog'), { ssr: false });
 type PanelName = InspectorKind | 'projects' | 'media' | 'library' | 'compose' | 'help' | null;
 type ToastTone = 'info' | 'success' | 'error';
 type Toast = { text: string; tone: ToastTone };
-type SaveState = 'saved' | 'pending' | 'saving' | 'error';
+/** A pending save question: `next` runs once the user saved or chose not to. */
+type SavePrompt = { kind: 'leave' | 'name'; next?: () => Promise<void> | void };
 const isMac = () => typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
 function relativeTime(time: number) {
   const seconds = Math.round((Date.now() - time) / 1000);
@@ -90,23 +93,27 @@ function relativeTime(time: number) {
   if (days < 7) return days === 1 ? 'yesterday' : `${days} days ago`;
   return new Date(time).toLocaleDateString();
 }
-let bootstrap: Promise<Project> | undefined;
-async function boot() {
-  if (!localStorage.getItem('studio-clean-workspace-v1')) {
-    const { removeLegacyExamples } = await import('@/lib/storage/legacy-examples');
-    await removeLegacyExamples();
-    localStorage.setItem('studio-clean-workspace-v1', 'done');
-  }
-  const projects = await listProjects();
-  const last = localStorage.getItem('studio-last-project');
-  return projects.find((p) => p.id === last) || projects[0] || makeProject();
+type Opened = { project: Project; stored: boolean; clean: boolean };
+let bootstrap: Promise<Opened> | undefined;
+/** Reopens the work from the last visit; a first visit starts on the blank start screen. */
+async function boot(): Promise<Opened> {
+  const working = await getWorkingCopy();
+  if (!working) return { project: makeProject(), stored: false, clean: false };
+  const saved = working.stored ? await getProject(working.project.id) : undefined;
+  return {
+    project: working.project,
+    stored: !!saved,
+    clean: !!saved && JSON.stringify(saved) === JSON.stringify(working.project),
+  };
 }
 export default function Editor() {
   const project = useStudio((s) => s.project),
     scene = useStudio(selectedScene),
     mode = useStudio((s) => s.mode),
     canUndo = useStudio((s) => s.past.length > 0),
-    canRedo = useStudio((s) => s.future.length > 0);
+    canRedo = useStudio((s) => s.future.length > 0),
+    stored = useStudio((s) => s.stored),
+    unsaved = useStudio(hasUnsavedWork);
   const [assets, setAssets] = useState<Asset[]>([]),
     [projects, setProjects] = useState<Project[]>([]),
     [panel, setPanel] = useState<PanelName>(null),
@@ -116,15 +123,15 @@ export default function Editor() {
     [systemTheme, setSystemTheme] = useState<'light' | 'dark'>('light'),
     [themeOverride, setThemeOverride] = useState<'light' | 'dark' | null>(null),
     [toast, setToast] = useState<Toast | null>(null),
-    [saveState, setSaveState] = useState<SaveState>('saved'),
+    [savingProject, setSavingProject] = useState(false),
+    [savePrompt, setSavePrompt] = useState<SavePrompt | null>(null),
     [importStatus, setImportStatus] = useState(''),
     [dragOver, setDragOver] = useState(false),
     [recording, setRecording] = useState(false),
     [recordTime, setRecordTime] = useState(0),
     [direction, setDirection] = useState<Direction>('macroGlide'),
     [mod, setMod] = useState('Ctrl'),
-    [confirmDelete, setConfirmDelete] = useState<string | null>(null),
-    [copying, setCopying] = useState(false);
+    [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const theme = themeOverride ?? systemTheme;
   const canExport =
     !!project &&
@@ -138,60 +145,13 @@ export default function Editor() {
     recorder = useRef<MediaRecorder | null>(null),
     stream = useRef<MediaStream | null>(null),
     timer = useRef<ReturnType<typeof setInterval> | null>(null),
-    saving = useRef<ReturnType<typeof setTimeout> | null>(null),
+    workingWrite = useRef<ReturnType<typeof setTimeout> | null>(null),
     copyBuffer = useRef<{ kind: 'scene'; value: Scene } | { kind: 'layer'; value: Layer } | null>(
       null,
     );
   const notify = useCallback((text: string, tone?: ToastTone) => {
     setToast(text ? { text, tone: tone ?? 'error' } : null);
   }, []);
-  const persist = useCallback(
-    (p: Project) => {
-      setSaveState('saving');
-      return saveProject(p)
-        .then(() => setSaveState('saved'))
-        .catch((e) => {
-          setSaveState('error');
-          notify(storageError(e));
-        });
-    },
-    [notify],
-  );
-  const copyImage = useCallback(async () => {
-    const p = useStudio.getState().project;
-    if (!p || (!p.photo.assetId && !p.photo.layers.length)) return;
-    if (!navigator.clipboard?.write || typeof ClipboardItem === 'undefined') {
-      notify('This browser cannot copy images. Use Export to download a PNG instead.');
-      return;
-    }
-    setCopying(true);
-    try {
-      const { exportPng } = await import('@/lib/export/render-export');
-      // Hand the clipboard a pending blob so the browser keeps the click's user activation.
-      const png = exportPng(
-        clone(p),
-        0,
-        'photo',
-        {
-          ...outputDimensions(p.output, 2560),
-          fps: 30,
-          format: 'auto',
-          transparent: p.photo.background.kind === 'transparent',
-        },
-        new AbortController().signal,
-      );
-      await navigator.clipboard.write([new ClipboardItem({ 'image/png': png })]);
-      notify('Image copied. Paste it anywhere.', 'success');
-    } catch (e) {
-      notify(
-        e instanceof Error && e.name !== 'NotAllowedError'
-          ? e.message
-          : 'The browser did not allow copying. Use Export to download a PNG.',
-      );
-    } finally {
-      setCopying(false);
-    }
-  }, [notify]);
   const closePanel = useCallback(() => setPanel(null), []),
     error = useCallback((s: string) => notify(s), [notify]),
     closeExport = useCallback(() => setExporting(false), []);
@@ -238,9 +198,9 @@ export default function Editor() {
     if (isMac()) setMod('⌘');
     bootstrap ??= boot();
     void bootstrap
-      .then((p) => {
+      .then(({ project, stored, clean }) => {
         if (active) {
-          useStudio.getState().load(p);
+          useStudio.getState().load(project, { stored, clean });
           void refresh();
         }
       })
@@ -289,44 +249,59 @@ export default function Editor() {
     return () => clearTimeout(timeout);
   }, [toast]);
   useEffect(() => {
+    // Keep the open work across reloads. This is not a save: Projects only change on Save.
     if (!project) return;
-    // Remember the selected document immediately. A field transaction can replace
-    // the debounce timer, so selection must not depend on that timer firing.
-    localStorage.setItem('studio-last-project', project.id);
-    if (saving.current) clearTimeout(saving.current);
-    setSaveState((current) => (current === 'error' ? current : 'pending'));
-    saving.current = setTimeout(() => {
-      const p = useStudio.getState().project!;
-      void persist(p).then(() => {
-        if (useStudio.getState().project?.id === p.id)
-          localStorage.setItem('studio-last-project', p.id);
-      });
-    }, 600);
-    return () => {
-      if (saving.current) clearTimeout(saving.current);
-    };
-  }, [project, persist]);
+    if (workingWrite.current) clearTimeout(workingWrite.current);
+    workingWrite.current = setTimeout(() => {
+      workingWrite.current = null;
+      const s = useStudio.getState();
+      if (s.project) void saveWorkingCopy({ project: s.project, stored: s.stored }).catch(() => {});
+    }, 400);
+  }, [project, stored]);
   useEffect(() => {
-    const unsub = useStudio.subscribe((s, prev) => {
-      if (prev.transaction && !s.transaction && s.project) {
-        if (saving.current) clearTimeout(saving.current);
-        saving.current = setTimeout(() => {
-          const p = useStudio.getState().project;
-          if (p) void persist(p);
-        }, 600);
-      }
-    });
-    return unsub;
-  }, [persist]);
-  useEffect(() => {
-    // Autosave is debounced; warn before leaving with an unsaved edit or a running export.
     const leave = (e: BeforeUnloadEvent) => {
-      if (saveState === 'saved' && !exporting) return;
-      e.preventDefault();
+      if (workingWrite.current || exporting) e.preventDefault();
     };
     window.addEventListener('beforeunload', leave);
     return () => window.removeEventListener('beforeunload', leave);
-  }, [saveState, exporting]);
+  }, [exporting]);
+  /** Writes the open project to Projects. A `name` renames it first, as on its first save. */
+  const saveToProjects = useCallback(
+    async (name?: string) => {
+      const state = useStudio.getState();
+      if (!state.project) return false;
+      if (name && name !== state.project.name)
+        state.edit((p) => {
+          p.name = name;
+        });
+      const p = useStudio.getState().project!;
+      setSavingProject(true);
+      try {
+        await saveProject(p);
+        useStudio.getState().markSaved(p);
+        await refresh();
+        return true;
+      } catch (e) {
+        notify(storageError(e));
+        return false;
+      } finally {
+        setSavingProject(false);
+      }
+    },
+    [notify, refresh],
+  );
+  /** Save button and Ctrl/Cmd+S. The first save of a project asks for its name. */
+  const requestSave = useCallback(() => {
+    const s = useStudio.getState();
+    if (!hasUnsavedWork(s)) return;
+    if (!s.stored) setSavePrompt({ kind: 'name' });
+    else void saveToProjects().then((ok) => ok && notify('Saved to Projects.', 'success'));
+  }, [notify, saveToProjects]);
+  /** Runs `next` now, or after asking whether to save work that it would discard. */
+  const leaveProject = useCallback((next: () => Promise<void> | void) => {
+    if (hasUnsavedWork(useStudio.getState())) setSavePrompt({ kind: 'leave', next });
+    else void next();
+  }, []);
   const importFiles = useCallback(
     async (files: File[], purpose: MediaTarget = 'media') => {
       if (!VIDEO_MODE_ENABLED) {
@@ -524,10 +499,7 @@ export default function Editor() {
       const widget = (e.target as Element)?.closest(
         '[role="slider"],[role="tab"],[role="radio"],[role="menuitem"],[role="option"]',
       );
-      if (cmd && e.shiftKey && e.key.toLowerCase() === 'c' && s.mode === 'photo') {
-        e.preventDefault();
-        void copyImage();
-      } else if (cmd && e.key.toLowerCase() === 'o') {
+      if (cmd && e.key.toLowerCase() === 'o') {
         e.preventDefault();
         chooseFiles('media');
       } else if (cmd && e.key.toLowerCase() === 'e') {
@@ -537,9 +509,7 @@ export default function Editor() {
           setExporting(true);
       } else if (cmd && e.key.toLowerCase() === 's') {
         e.preventDefault();
-        if (saving.current) clearTimeout(saving.current);
-        if (s.project) void persist(s.project);
-        notify('Saved. Projects also save automatically while you work.', 'success');
+        requestSave();
       } else if (!cmd && e.key === '?') {
         e.preventDefault();
         setPanel('help');
@@ -633,7 +603,7 @@ export default function Editor() {
       window.removeEventListener('paste', paste);
       window.removeEventListener('keydown', keydown);
     };
-  }, [importFiles, exporting, notify, persist, chooseFiles, copyImage]);
+  }, [importFiles, exporting, notify, chooseFiles, requestSave]);
   useEffect(
     () => () => {
       if (recorder.current?.state === 'recording') recorder.current.stop();
@@ -726,54 +696,47 @@ export default function Editor() {
         notify(e.message);
     }
   };
-  const switchProject = async (id: string) => {
-    try {
-      if (project) await saveProject(project);
-      const p = await getProject(id);
-      if (p) {
-        useStudio.getState().load(p);
-        localStorage.setItem('studio-last-project', id);
+  const switchProject = (id: string) => {
+    if (id === project?.id) return setPanel(null);
+    leaveProject(async () => {
+      try {
+        const p = await getProject(id);
+        if (!p) return notify('This project is no longer available.');
+        useStudio.getState().load(p, { stored: true });
         setPanel(null);
+      } catch (e) {
+        notify(storageError(e));
       }
-    } catch (e) {
-      notify(storageError(e));
-    }
+    });
   };
-  const newProject = async () => {
-    const p = makeProject();
-    try {
-      if (project) await saveProject(project);
-      await saveProject(p);
-      useStudio.getState().load(p);
-      setPanel(null);
-      await refresh();
-    } catch (e) {
-      notify(storageError(e));
-    }
+  /** The blank start screen. An untouched draft is kept instead of replaced. */
+  const startFresh = () => {
+    setPanel(null);
+    useStudio.getState().setMode('photo');
+    const s = useStudio.getState();
+    if (s.project && !s.stored && isEmptyProject(s.project)) return;
+    useStudio.getState().load(makeProject());
   };
+  const newProject = () => leaveProject(startFresh);
   const duplicateProject = async (p: Project) => {
     const next = clone(p);
     next.id = uid();
-    next.name = `${p.name} · copy`;
+    next.name = `${p.name} copy`;
     next.createdAt = Date.now();
     next.updatedAt = Date.now();
     try {
       await saveProject(next);
-      useStudio.getState().load(next);
       await refresh();
+      notify(`Saved “${next.name}” to Projects.`, 'success');
     } catch (e) {
       notify(storageError(e));
     }
   };
+  /** Removes a project from Projects. If it is open, its content stays open as an unsaved draft. */
   const removeProject = async (p: Project) => {
     try {
-      const remaining = projects.filter((x) => x.id !== p.id);
-      if (p.id === project?.id) {
-        const next = remaining[0] || makeProject();
-        if (!remaining.length) await saveProject(next);
-        useStudio.getState().load(next);
-      }
       await deleteProject(p.id);
+      if (p.id === project?.id) useStudio.getState().markUnstored();
       await refresh();
     } catch (e) {
       notify(storageError(e));
@@ -784,7 +747,7 @@ export default function Editor() {
     setImportStatus('Preparing project package');
     try {
       const { packProject } = await import('@/lib/storage/package');
-      download(await packProject(project), `${filename(project.name)}.studio.zip`);
+      download(await packProject(project), `${filename(project.name)}.project-camera.zip`);
     } catch (e) {
       notify(e instanceof Error ? e.message : 'Could not package the project.');
     } finally {
@@ -862,12 +825,12 @@ export default function Editor() {
       >
         <section className="desktop-only" aria-labelledby="desktop-only-title">
           <span className="studio-mark" aria-hidden="true">
-            <Focus size={22} />
+            <BrandMark size={22} />
           </span>
-          <h1 id="desktop-only-title">Please open Studio on a desktop</h1>
+          <h1 id="desktop-only-title">Please open Project Camera on a desktop</h1>
           <p>
-            Studio is built for a larger screen, a mouse and a keyboard. Visit this page on your
-            computer to edit your images.
+            Project Camera is built for a larger screen, a mouse and a keyboard. Visit this page on
+            your computer to edit your images.
           </p>
           <button
             className="primary"
@@ -883,88 +846,77 @@ export default function Editor() {
         </section>
         <header className="topbar">
           <div className="topbar-left">
-            <span className="studio-brand" aria-label="Interface Studio">
-              <span className="studio-mark" aria-hidden="true">
-                <Focus size={15} />
-              </span>
-              <span className="studio-wordmark">Studio</span>
-            </span>
-            <span className="top-divider" />
             <button
-              className={`project-trigger ${panel === 'projects' ? 'selected' : ''}`}
-              aria-label="Projects"
-              title="All projects"
-              aria-expanded={panel === 'projects'}
-              onClick={() => {
-                void refresh();
-                setPanel(panel === 'projects' ? null : 'projects');
-              }}
+              type="button"
+              className="studio-brand"
+              aria-label="Project Camera – start a new project"
+              title="New project"
+              onClick={newProject}
             >
-              <FolderOpen size={15} />
-              <ChevronDown size={12} />
-            </button>
-            {project ? (
-              <input
-                className="project-name-input"
-                aria-label="Project name"
-                title="Rename project"
-                value={project.name}
-                size={Math.max(6, Math.min(32, project.name.length + 1))}
-                spellCheck={false}
-                onFocus={(e) => {
-                  useStudio.getState().begin();
-                  e.currentTarget.select();
-                }}
-                onBlur={() => {
-                  const s = useStudio.getState();
-                  if (!s.project?.name.trim())
-                    s.edit((p) => {
-                      p.name = 'Untitled project';
-                    });
-                  s.commit();
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === 'Escape') e.currentTarget.blur();
-                }}
-                onChange={(e) =>
-                  useStudio.getState().edit((p) => {
-                    p.name = e.target.value;
-                  })
-                }
-              />
-            ) : (
-              <span className="project-name-placeholder">Opening project</span>
-            )}
-            {project && (
-              <span
-                className="save-indicator"
-                data-state={saveState}
-                role="status"
-                title={
-                  saveState === 'error'
-                    ? 'Could not save to this browser. Download a project package as a backup.'
-                    : 'Projects save automatically in this browser.'
-                }
-              >
-                {saveState === 'error' ? (
-                  <CloudOff size={15} />
-                ) : saveState === 'saved' ? (
-                  <CloudCheck size={15} />
-                ) : (
-                  <CloudUp size={15} />
-                )}
-                <span>
-                  {saveState === 'error'
-                    ? 'Not saved'
-                    : saveState === 'saved'
-                      ? 'Saved'
-                      : 'Saving…'}
-                </span>
+              <span className="studio-mark" aria-hidden="true">
+                <BrandMark size={15} />
               </span>
-            )}
+              <span className="studio-wordmark">Project Camera</span>
+            </button>
+            <span className="top-divider" />
+            <nav className="project-path" aria-label="Project">
+              <button
+                className={`project-trigger ${panel === 'projects' ? 'selected' : ''}`}
+                aria-expanded={panel === 'projects'}
+                title="Open Projects"
+                onClick={() => {
+                  void refresh();
+                  setPanel(panel === 'projects' ? null : 'projects');
+                }}
+              >
+                <FolderOpen size={15} />
+                <span>Projects</span>
+              </button>
+              <span className="project-path-separator" aria-hidden="true">
+                /
+              </span>
+              {project ? (
+                <input
+                  className="project-name-input"
+                  aria-label="Project name"
+                  title="Rename project"
+                  value={project.name}
+                  maxLength={120}
+                  size={Math.max(8, Math.min(28, project.name.length + 1))}
+                  spellCheck={false}
+                  onFocus={(e) => {
+                    useStudio.getState().begin();
+                    e.currentTarget.select();
+                  }}
+                  onBlur={() => {
+                    const s = useStudio.getState();
+                    if (!s.project?.name.trim())
+                      s.edit((p) => {
+                        p.name = 'Untitled project';
+                      });
+                    s.commit();
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === 'Escape') e.currentTarget.blur();
+                  }}
+                  onChange={(e) =>
+                    useStudio.getState().edit((p) => {
+                      p.name = e.target.value;
+                    })
+                  }
+                />
+              ) : (
+                <span className="project-name-placeholder">Opening…</span>
+              )}
+              {project && !stored && (
+                <span className="project-badge" title="Not in Projects yet. Save to keep it.">
+                  Draft
+                </span>
+              )}
+            </nav>
           </div>
           {VIDEO_MODE_ENABLED ? (
-            <PaperSegmentedControl
+            <SegmentedControl
               className="workspace-mode"
               aria-label="Studio mode"
               value={mode}
@@ -1019,24 +971,28 @@ export default function Editor() {
             </div>
             <span className="top-divider" />
             <button
-              className="header-import"
-              aria-label="Import media"
-              title={`Import an image · ${mod} O`}
-              disabled={!project || !!importStatus}
-              onClick={() => chooseFiles('media')}
+              className="save-button"
+              data-state={
+                savingProject ? 'saving' : unsaved ? 'unsaved' : stored ? 'saved' : 'empty'
+              }
+              disabled={!unsaved || savingProject}
+              title={
+                unsaved
+                  ? `Save to Projects · ${mod} S`
+                  : stored
+                    ? 'All changes are saved'
+                    : 'Add an image to save a project'
+              }
+              onClick={requestSave}
             >
-              <Plus size={16} />
-              <span>Import</span>
-            </button>
-            <button
-              className="header-import header-copy"
-              aria-label="Copy image"
-              title={`Copy image to clipboard · ${mod} Shift C`}
-              disabled={!canExport || copying}
-              onClick={() => void copyImage()}
-            >
-              {copying ? <span className="spinner" /> : <Clipboard size={16} />}
-              <span>Copy</span>
+              {savingProject ? (
+                <span className="spinner" />
+              ) : !unsaved && stored ? (
+                <Check size={15} />
+              ) : (
+                <SaveIcon size={15} />
+              )}
+              <span>{savingProject ? 'Saving…' : !unsaved && stored ? 'Saved' : 'Save'}</span>
             </button>
             <button
               className="export-button"
@@ -1261,12 +1217,11 @@ export default function Editor() {
             setImportStatus('Opening project package');
             try {
               const { unpackProject } = await import('@/lib/storage/package');
+              // The package lands in Projects; it opens from there like any saved project.
               const p = await unpackProject(f);
-              if (project) await saveProject(project);
-              useStudio.getState().load(p);
               await refresh();
-              setPanel(null);
-              notify('Project and referenced media imported.', 'success');
+              setPanel('projects');
+              notify(`Added “${p.name}” to Projects.`, 'success');
             } catch (e) {
               notify(e instanceof Error ? e.message : 'This project package could not be read.');
             } finally {
@@ -1276,46 +1231,44 @@ export default function Editor() {
         />
         {panel === 'projects' && (
           <Panel title="Projects" onClose={closePanel} centered wide>
-            <Field label="Project name">
-              <input
-                value={project?.name || ''}
-                onChange={(e) =>
-                  useStudio.getState().edit((p) => {
-                    p.name = e.target.value;
-                  })
-                }
-              />
-            </Field>
-            <div className="project-list">
-              {[...projects]
-                .sort((a, b) => (b.id === project?.id ? 1 : 0) - (a.id === project?.id ? 1 : 0))
-                .map((p) => {
-                  const current = p.id === project?.id;
-                  const doc = current ? project : p;
+            <div className="projects-toolbar">
+              <p className="panel-note">
+                {projects.length
+                  ? `${projects.length} saved ${projects.length === 1 ? 'project' : 'projects'} in this browser`
+                  : 'Projects you save appear here.'}
+              </p>
+              <button className="primary" onClick={newProject}>
+                <Plus size={15} /> New project
+              </button>
+            </div>
+            {projects.length ? (
+              <ul className="project-grid">
+                {projects.map((p) => {
+                  const open = stored && p.id === project?.id;
+                  const doc = open && project ? project : p;
                   const thumb = assets.find(
                     (a) => a.id === (doc.photo.assetId || doc.scenes[0]?.assetId),
                   )?.thumbnail;
-                  const parts = [
-                    doc.photo.assetId ? 'Photo' : '',
-                    doc.scenes.length
-                      ? `${doc.scenes.length} ${doc.scenes.length === 1 ? 'clip' : 'clips'}`
-                      : '',
-                  ].filter(Boolean);
                   return (
-                    <div key={p.id} className={current ? 'current' : ''}>
-                      <button onClick={() => void switchProject(p.id)} aria-current={current}>
-                        <span className="project-thumb" aria-hidden="true">
-                          {thumb ? <img src={thumb} alt="" /> : <ImagePlus size={16} />}
+                    <li key={p.id} className="project-card" data-open={open || undefined}>
+                      <button
+                        className="project-open"
+                        aria-current={open || undefined}
+                        onClick={() => switchProject(p.id)}
+                      >
+                        <span className="project-cover" aria-hidden="true">
+                          {thumb ? <img src={thumb} alt="" /> : <ImagePlus size={20} />}
                         </span>
-                        <span>
+                        <span className="project-meta">
                           <b>{doc.name || 'Untitled project'}</b>
                           <small>
-                            {current ? 'Open now' : `Edited ${relativeTime(doc.updatedAt)}`}
-                            {' · '}
-                            {parts.join(' · ') || 'Empty'}
+                            {open
+                              ? unsaved
+                                ? 'Open · unsaved changes'
+                                : 'Open now'
+                              : `Edited ${relativeTime(p.updatedAt)}`}
                           </small>
                         </span>
-                        {current && <Check size={14} />}
                       </button>
                       {confirmDelete === p.id ? (
                         <div className="project-confirm" role="group" aria-label="Confirm delete">
@@ -1333,7 +1286,7 @@ export default function Editor() {
                           </button>
                         </div>
                       ) : (
-                        <>
+                        <div className="project-actions">
                           <IconButton
                             label={`Duplicate ${p.name}`}
                             onClick={() => void duplicateProject(p)}
@@ -1346,23 +1299,55 @@ export default function Editor() {
                           >
                             <Trash2 size={14} />
                           </IconButton>
-                        </>
+                        </div>
                       )}
-                    </div>
+                    </li>
                   );
                 })}
+              </ul>
+            ) : (
+              <div className="projects-empty">
+                <span className="empty-stage-icon" aria-hidden="true">
+                  <FolderOpen size={24} />
+                </span>
+                <b>No saved projects yet</b>
+                <p>
+                  Press <kbd>Save</kbd> or <kbd>{mod} S</kbd> to keep a project here.
+                </p>
+              </div>
+            )}
+            <div className="projects-files">
+              <button className="text-button" onClick={() => packageInput.current?.click()}>
+                <Upload size={15} /> Import project file
+              </button>
+              <button
+                className="text-button"
+                disabled={!project || isEmptyProject(project)}
+                onClick={() => void packageExport()}
+              >
+                <Download size={15} /> Export project file
+              </button>
             </div>
-            <button className="secondary full" onClick={() => void newProject()}>
-              <Plus size={15} /> New project
-            </button>
-            <div className="section-label">Project files</div>
-            <button className="text-button full" onClick={() => void packageExport()}>
-              <Download size={15} /> Download project package
-            </button>
-            <button className="text-button full" onClick={() => packageInput.current?.click()}>
-              <Upload size={15} /> Open project package
-            </button>
           </Panel>
+        )}
+        {savePrompt && project && (
+          <SaveDialog
+            kind={savePrompt.kind}
+            name={project.name}
+            stored={stored}
+            onCancel={() => setSavePrompt(null)}
+            onDiscard={() => {
+              setSavePrompt(null);
+              void savePrompt.next?.();
+            }}
+            onSave={async (name) => {
+              if (!(await saveToProjects(stored ? undefined : name))) return false;
+              setSavePrompt(null);
+              notify('Saved to Projects.', 'success');
+              await savePrompt.next?.();
+              return true;
+            }}
+          />
         )}
         {(panel === 'media' || panel === 'library') && (
           <Panel
@@ -1563,14 +1548,14 @@ export default function Editor() {
               <li>Pick a background preset or gradient, then set the angle and zoom.</li>
               <li>Round the corners, adjust the shadow and add text or a logo.</li>
               <li>Choose Manual focus and click your subject for depth blur.</li>
-              <li>Copy the result to the clipboard or export a full-resolution PNG.</li>
+              <li>Save to Projects, then export a full-resolution PNG.</li>
             </ol>
             <div className="section-label">Shortcuts</div>
             <dl className="shortcuts">
               {[
                 ['Import media', `${mod} O`],
                 ['Export', `${mod} E`],
-                ['Save now', `${mod} S`],
+                ['Save to Projects', `${mod} S`],
                 ['Undo', `${mod} Z`],
                 ['Redo', `${mod} Shift Z`],
                 ['Copy / cut / paste', `${mod} C / X / V`],

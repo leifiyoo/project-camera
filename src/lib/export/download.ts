@@ -7,5 +7,5 @@ export function download(blob: Blob, name: string) {
   setTimeout(() => URL.revokeObjectURL(url), 30000);
 }
 export function filename(name: string) {
-  return name.replace(/[^a-z0-9 _-]/gi, '').trim() || 'Interface Studio';
+  return name.replace(/[^a-z0-9 _-]/gi, '').trim() || 'Project Camera';
 }

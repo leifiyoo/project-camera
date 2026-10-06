@@ -1,19 +1,26 @@
+# Dependencies and caches
 node_modules/
-.next/
 .npm-cache/
 *.tsbuildinfo
-test-results/
-playwright-report/
-verification/*.png
-verification/*.mp4
-verification/*.webm
-verification/*.zip
-verification/*.jpg
-verification/*.jpeg
-verification/*.log
-backups/
 next-env.d.ts
+
+# Build output
+.next/
+out/
+.vercel/
+.wrangler/
+
+# Local environment and secrets
 .env*
 !.env.example
+*.pem
+
+# Local-only artifacts
+backups/
+verification/
+test-results/
+playwright-report/
+
+# OS files
 .DS_Store
 Thumbs.db

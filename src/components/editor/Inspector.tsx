@@ -12,7 +12,7 @@ import {
   AlignRight,
 } from '@/components/ui/studio-icons';
 import { Button } from '@radix-ui/themes';
-import { PaperSegmentedControl } from '@/components/ui/paper-segmented-control';
+import { SegmentedControl } from '@/components/ui/segmented-control';
 import { useStudio, selectedScene } from '@/lib/studio/store';
 import { runtime } from '@/lib/studio/runtime';
 import { cameraAtTime, timelineSpans } from '@/lib/studio/evaluate';
@@ -190,7 +190,7 @@ export default function Inspector({
   const editPose = state.editCamera;
   const background = (
     <>
-      <PaperSegmentedControl
+      <SegmentedControl
         className="background-kind-switch"
         size="sm"
         fullWidth
@@ -404,7 +404,7 @@ export default function Inspector({
   const focus = (
     <>
       <Field label="Mode">
-        <PaperSegmentedControl
+        <SegmentedControl
           className="focus-mode-switch"
           size="sm"
           fullWidth
@@ -968,7 +968,7 @@ export default function Inspector({
                   </Field>
                   <div className="field-grid">
                     <Field label="Alignment">
-                      <PaperSegmentedControl
+                      <SegmentedControl
                         aria-label="Text alignment"
                         size="sm"
                         fullWidth

@@ -3,6 +3,7 @@ import { describe, it, expect } from 'vitest';
 import { makeProject, makeScene, uid, referencedAssetIds, type AssetRecord } from '../studio/model';
 import { saveProject, getProject, saveAsset, getAsset, deleteAsset } from './db';
 import { packProject, unpackProject } from './package';
+import { assetSchema } from './schema';
 describe('local documents and portable media', () => {
   it('saves and packages an empty project without inventing a scene', async () => {
     const project = makeProject();
@@ -62,5 +63,26 @@ describe('local documents and portable media', () => {
     expect(await (await getAsset(next.photo.assetId!))!.blob.text()).toBe('portable media bytes');
     expect(next.scenes[0].layers).toEqual(p.scenes[0].layers);
     expect((await getProject(next.id))?.name).toContain('imported');
+  });
+});
+describe('untrusted project packages', () => {
+  const meta = (mime: string) => ({
+    id: uid(),
+    name: 'media',
+    kind: 'image',
+    mime,
+    width: 20,
+    height: 10,
+    duration: 0,
+    createdAt: Date.now(),
+    thumbnail: 'data:image/png;base64,AA==',
+  });
+  it('accepts image and video media types', () => {
+    for (const mime of ['image/png', 'image/svg+xml', 'video/quicktime', ''])
+      expect(assetSchema.safeParse(meta(mime)).success).toBe(true);
+  });
+  it('rejects document types that a browser could run as a page', () => {
+    for (const mime of ['text/html', 'application/xhtml+xml', 'image/png;text/html'])
+      expect(assetSchema.safeParse(meta(mime)).success).toBe(false);
   });
 });

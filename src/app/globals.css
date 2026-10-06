@@ -50,14 +50,14 @@ textarea {
   font: inherit;
   letter-spacing: inherit;
 }
-button:not([data-slot='paper-segment']) {
+button:not([data-slot='segment']) {
   cursor: pointer;
   color: inherit;
   border: 0;
   background: none;
   touch-action: manipulation;
 }
-button:disabled:not([data-slot='paper-segment']) {
+button:disabled:not([data-slot='segment']) {
   cursor: default;
   opacity: 0.38;
 }
@@ -69,7 +69,7 @@ select,
 summary {
   outline-offset: 3px;
 }
-button:focus-visible:not([data-slot='paper-segment']),
+button:focus-visible:not([data-slot='segment']),
 a:focus-visible,
 summary:focus-visible,
 canvas:focus-visible {
@@ -85,16 +85,16 @@ button svg {
   flex-shrink: 0;
   stroke-width: 1.8;
 }
-button:not([data-slot='paper-segment']) {
+button:not([data-slot='segment']) {
   transition:
     background 0.16s,
     color 0.16s,
     transform 0.16s;
 }
-button:hover:not(:disabled):not([data-slot='paper-segment']) {
+button:hover:not(:disabled):not([data-slot='segment']) {
   background: var(--surface2);
 }
-button:active:not(:disabled):not([data-slot='paper-segment']) {
+button:active:not(:disabled):not([data-slot='segment']) {
   transform: translateY(1px);
 }
 h1,
@@ -879,52 +879,6 @@ summary {
 .asset-actions .icon-button {
   width: 22px;
   height: 22px;
-  color: var(--muted);
-}
-.project-list {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  margin: 4px 0 16px;
-}
-.project-list > div {
-  display: flex;
-  align-items: center;
-  border-radius: 7px;
-  padding: 3px;
-}
-.project-list > div.current {
-  background: var(--surface2);
-}
-.project-list > div > button:first-child {
-  display: flex;
-  flex: 1;
-  align-items: center;
-  gap: 9px;
-  min-width: 0;
-  padding: 8px 3px;
-  text-align: left;
-}
-.project-list > div > button > span {
-  flex: 1;
-  min-width: 0;
-}
-.project-list b {
-  font-size: 11px;
-  font-weight: 500;
-  display: block;
-  text-overflow: ellipsis;
-  overflow: hidden;
-  white-space: nowrap;
-}
-.project-list small {
-  font-size: 9px;
-  color: var(--muted);
-  display: block;
-  padding-top: 4px;
-}
-.project-list .icon-button {
-  width: 25px;
   color: var(--muted);
 }
 .direction-list {

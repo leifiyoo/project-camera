@@ -1,4 +1,7 @@
 import { z } from 'zod';
+
+// The production CSP forbids eval, so validate without Zod's generated fast path.
+z.config({ jitless: true });
 const num = z.number().finite();
 const id = z.string().min(1).max(128);
 const color = z.string().regex(/^#[\da-f]{6}$/i);
@@ -152,7 +155,8 @@ export const assetSchema = z.object({
   id,
   name: z.string().max(500),
   kind: z.enum(['image', 'video']),
-  mime: z.string(),
+  // Media must stay media: a package cannot smuggle in HTML or other document types.
+  mime: z.string().regex(/^((image|video)\/[\w.+-]+)?$/i),
   width: num.min(1).max(32768),
   height: num.min(1).max(32768),
   duration: num.min(0),

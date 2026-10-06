@@ -718,7 +718,7 @@ pre {
   .compact-sidebar .rotation-fields .field:nth-child(3) .scrub-label::before {
     content: 'Z';
   }
-  .compact-sidebar [data-slot='paper-segmented-control'][data-size='sm'] {
-    --paper-segment-item-height: 20px;
+  .compact-sidebar [data-slot='segmented-control'][data-size='sm'] {
+    --segment-item-height: 20px;
   }
 }

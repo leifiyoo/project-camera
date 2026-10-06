@@ -10,7 +10,7 @@ import { download, filename } from '@/lib/export/download';
 import type { ExportSettings, Support } from '@/lib/export/render-export';
 import { importMedia } from '@/lib/media/import';
 import { Field, NumberField, Select, SelectOption } from './primitives';
-import { PaperSegmentedControl } from '@/components/ui/paper-segmented-control';
+import { SegmentedControl } from '@/components/ui/segmented-control';
 export default function ExportDialog({
   onClose,
   onSaved,
@@ -292,7 +292,7 @@ export default function ExportDialog({
           </div>
           <div className="export-options">
             {VIDEO_MODE_ENABLED && (
-              <PaperSegmentedControl
+              <SegmentedControl
                 aria-label="Export type"
                 value={type}
                 fullWidth

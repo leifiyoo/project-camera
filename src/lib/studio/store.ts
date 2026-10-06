@@ -10,6 +10,7 @@ import {
   type Layer,
   type CameraPose,
   type LogoPosition,
+  isEmptyProject,
 } from './model';
 import { cameraAtTime, timelineSpans, totalDuration } from './evaluate';
 import { runtime } from './runtime';
@@ -23,7 +24,13 @@ type State = {
   future: Project[];
   transaction: Project | null;
   ready: boolean;
-  load: (p: Project) => void;
+  /** Whether the open project exists in Projects. */
+  stored: boolean;
+  /** The project state that was last saved; edits replace `project`, so identity marks changes. */
+  saved: Project | null;
+  load: (p: Project, options?: { stored?: boolean; clean?: boolean }) => void;
+  markSaved: (p: Project) => void;
+  markUnstored: () => void;
   setMode: (m: 'photo' | 'video') => void;
   selectScene: (id: string | null) => void;
   selectLayer: (id: string | null) => void;
@@ -47,7 +54,9 @@ export const useStudio = create<State>((set, get) => ({
   future: [],
   transaction: null,
   ready: false,
-  load: (p) => {
+  stored: false,
+  saved: null,
+  load: (p, { stored = false, clean = stored } = {}) => {
     runtime.set({ time: 0, playing: false });
     const project = clone(p);
     for (const scene of [project.photo, ...project.scenes]) {
@@ -92,8 +101,12 @@ export const useStudio = create<State>((set, get) => ({
       future: [],
       transaction: null,
       ready: true,
+      stored,
+      saved: clean ? project : null,
     });
   },
+  markSaved: (p) => set({ stored: true, saved: p }),
+  markUnstored: () => set({ stored: false, saved: null }),
   setMode: (mode) => {
     runtime.set({ time: 0, playing: false });
     set({ mode, sceneId: get().project?.scenes[0]?.id || null, layerId: null, keyId: null });
@@ -196,6 +209,9 @@ export const useStudio = create<State>((set, get) => ({
     });
   },
 }));
+/** True when leaving the open project would lose work. */
+export const hasUnsavedWork = (s: Pick<State, 'project' | 'saved' | 'stored'>) =>
+  !!s.project && s.project !== s.saved && (s.stored || !isEmptyProject(s.project));
 export const selectedScene = (s: State) =>
   s.project
     ? s.mode === 'photo'

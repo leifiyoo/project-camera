@@ -1,15 +1,23 @@
 import { openDB, type DBSchema } from 'idb';
 import { referencedAssetIds, type AssetRecord, type Project } from '../studio/model';
+/** The open document, kept between visits. `stored` says whether it also exists in Projects. */
+export type WorkingCopy = { project: Project; stored: boolean };
 interface StudioDB extends DBSchema {
+  /** Projects the user saved explicitly. */
   projects: { key: string; value: Project };
   assets: { key: string; value: AssetRecord };
+  working: { key: 'current'; value: WorkingCopy };
 }
 let promise: ReturnType<typeof openDB<StudioDB>> | undefined;
 export const database = () =>
-  (promise ??= openDB<StudioDB>('interface-studio', 1, {
-    upgrade(db) {
-      db.createObjectStore('projects', { keyPath: 'id' });
-      db.createObjectStore('assets', { keyPath: 'meta.id' });
+  // The database keeps its original name so projects saved before the rename stay available.
+  (promise ??= openDB<StudioDB>('interface-studio', 2, {
+    upgrade(db, oldVersion) {
+      if (oldVersion < 1) {
+        db.createObjectStore('projects', { keyPath: 'id' });
+        db.createObjectStore('assets', { keyPath: 'meta.id' });
+      }
+      if (oldVersion < 2) db.createObjectStore('working');
     },
   }));
 export async function saveProject(project: Project) {
@@ -25,6 +33,12 @@ export async function getProject(id: string) {
 export async function deleteProject(id: string) {
   await (await database()).delete('projects', id);
 }
+export async function getWorkingCopy() {
+  return (await database()).get('working', 'current');
+}
+export async function saveWorkingCopy(copy: WorkingCopy) {
+  await (await database()).put('working', copy, 'current');
+}
 export async function saveAsset(record: AssetRecord) {
   await (await database()).put('assets', record);
 }
@@ -37,7 +51,9 @@ export async function listAssets() {
     .sort((a, b) => b.createdAt - a.createdAt);
 }
 export async function deleteAsset(id: string) {
+  const working = await getWorkingCopy();
   const projects = await listProjects();
+  if (working && !projects.some((p) => p.id === working.project.id)) projects.push(working.project);
   const used = projects.filter((p) => referencedAssetIds(p).includes(id));
   if (used.length)
     throw new Error(

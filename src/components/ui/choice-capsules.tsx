@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 
 type Choice<T extends string> = { value: T; label: string; icon?: ReactNode };
 
-/** Whirl-style radio capsules, shared by workspace preferences. */
+/** Radio capsules for workspace preferences. */
 export function ChoiceCapsules<T extends string>({
   value,
   onChange,

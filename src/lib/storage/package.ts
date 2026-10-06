@@ -1,8 +1,13 @@
 import { zipSync, unzipSync, strToU8, strFromU8 } from 'fflate';
 import { clone, uid, referencedAssetIds, type Project, type AssetRecord } from '../studio/model';
 import { resolveAsset, registerAsset } from '../media/pool';
+import { safeSvg } from '../media/import';
 import { projectSchema, assetSchema } from './schema';
 import { database } from './db';
+
+const PACKAGE_FORMAT = 'project-camera';
+// Files exported before the rename still open.
+const LEGACY_PACKAGE_FORMAT = 'interface-studio';
 export async function packProject(project: Project): Promise<Blob> {
   const entries: Record<string, Uint8Array> = {};
   const assets = [];
@@ -12,7 +17,7 @@ export async function packProject(project: Project): Promise<Blob> {
     entries[`media/${id}`] = new Uint8Array(await r.blob.arrayBuffer());
   }
   entries['project.json'] = strToU8(
-    JSON.stringify({ format: 'interface-studio', version: 1, project, assets }),
+    JSON.stringify({ format: PACKAGE_FORMAT, version: 1, project, assets }),
   );
   return new Blob([zipSync(entries, { level: 0 }) as Uint8Array<ArrayBuffer>], {
     type: 'application/zip',
@@ -28,9 +33,9 @@ export async function unpackProject(file: Blob): Promise<Project> {
       return e.name === 'project.json' || /^media\/[^/]+$/.test(e.name);
     },
   });
-  if (!files['project.json']) throw new Error('Choose an Interface Studio project package (.zip).');
+  if (!files['project.json']) throw new Error('Choose a Project Camera project file (.zip).');
   const data = JSON.parse(strFromU8(files['project.json']));
-  if (data.format !== 'interface-studio' || data.version !== 1)
+  if (![PACKAGE_FORMAT, LEGACY_PACKAGE_FORMAT].includes(data.format) || data.version !== 1)
     throw new Error('This project package version is not supported.');
   const project: Project = projectSchema.parse(data.project);
   const metas = assetSchema.array().parse(data.assets);
@@ -39,7 +44,9 @@ export async function unpackProject(file: Blob): Promise<Project> {
     const meta = metas.find((a) => a.id === id);
     const bytes = files[`media/${id}`];
     if (!meta || !bytes) throw new Error('This package is missing referenced media.');
-    records.push({ meta, blob: new Blob([bytes as Uint8Array<ArrayBuffer>], { type: meta.mime }) });
+    const blob = new Blob([bytes as Uint8Array<ArrayBuffer>], { type: meta.mime });
+    // Packages are untrusted input, so SVGs pass the same filter as direct imports.
+    records.push({ meta, blob: /svg/i.test(meta.mime) ? await safeSvg(blob) : blob });
   }
   const next = clone(project);
   next.id = uid();

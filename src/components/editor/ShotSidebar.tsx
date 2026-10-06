@@ -142,17 +142,14 @@ export default function ShotSidebar({
                   </Button>
                 ))}
             </div>
-            <Button
-              variant="soft"
-              color="gray"
-              className="secondary full"
-              onClick={() => onImport('media')}
-            >
-              Import media
-            </Button>
-            <Button variant="ghost" color="gray" className="secondary full" onClick={onLibrary}>
-              Open Library
-            </Button>
+            <div className="shot-library-actions">
+              <Button variant="soft" color="gray" onClick={() => onImport('media')}>
+                Import media
+              </Button>
+              <Button variant="soft" color="gray" onClick={onLibrary}>
+                Open library
+              </Button>
+            </div>
           </section>
         </Tabs.Content>
       </Tabs.Root>

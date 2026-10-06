@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { useStudio } from './store';
+import { useStudio, hasUnsavedWork } from './store';
 import { makeProject, makeScene, makeText } from './model';
 import { runtime } from './runtime';
 beforeEach(() => {
@@ -79,5 +79,35 @@ describe('completed document changes', () => {
       p.zoom = 1.4;
     });
     expect(useStudio.getState().project!.scenes[0].keyframes[0].pose.zoom).toBe(1.4);
+  });
+});
+describe('unsaved work', () => {
+  const unsaved = () => hasUnsavedWork(useStudio.getState());
+  it('treats a blank draft as nothing to lose', () => {
+    useStudio.getState().load(makeProject());
+    expect(unsaved()).toBe(false);
+  });
+  it('flags a draft once it has content', () => {
+    useStudio.getState().load(makeProject());
+    useStudio.getState().edit((p) => p.photo.layers.push(makeText()));
+    expect(unsaved()).toBe(true);
+  });
+  it('tracks changes since the last save, including undo back to it', () => {
+    useStudio.getState().load(makeProject(), { stored: true });
+    expect(unsaved()).toBe(false);
+    useStudio.getState().edit((p) => {
+      p.name = 'Renamed';
+    });
+    expect(unsaved()).toBe(true);
+    useStudio.getState().undo();
+    expect(unsaved()).toBe(false);
+  });
+  it('is clean right after saving and flags a project removed from Projects', () => {
+    useStudio.getState().load(makeProject());
+    useStudio.getState().edit((p) => p.photo.layers.push(makeText()));
+    useStudio.getState().markSaved(useStudio.getState().project!);
+    expect(unsaved()).toBe(false);
+    useStudio.getState().markUnstored();
+    expect(unsaved()).toBe(true);
   });
 });
