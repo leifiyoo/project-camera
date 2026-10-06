@@ -1,9 +1,0 @@
-{
-  "checks": [
-    "Closed disclosure: Shift+Tab wraps Close to visible Focus and depth summary; Tab wraps back.",
-    "Nested closed disclosure: Fine blur controls summary is the last visible focus stop.",
-    "Opened nested disclosure: Blur limit becomes the last stop and cycles correctly.",
-    "Closing disclosure immediately excludes its sliders from the focus cycle."
-  ],
-  "errors": []
-}

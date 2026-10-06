@@ -1,4 +1,4 @@
-name: Cross-platform checks
+name: Checks
 
 on:
   push:
@@ -15,37 +15,33 @@ concurrency:
 
 jobs:
   check:
-    name: ${{ matrix.os }} / Node ${{ matrix.node }}
+    name: ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest, macos-15-intel]
-        node: ['24']
+        os: [ubuntu-latest, windows-latest, macos-latest]
     env:
       NEXT_TELEMETRY_DISABLED: '1'
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
-          node-version: ${{ matrix.node }}
+          node-version-file: .nvmrc
           cache: npm
       - name: Install locked dependencies
         run: npm ci
+      - name: Check formatting
+        run: npm run format:check
       - name: Check types
         run: npm run typecheck
       - name: Lint
         run: npm run lint
       - name: Test
         run: npm test
-      - name: Build production website
+      - name: Build static site
         run: npm run build
-      - name: Install Chromium and Linux system dependencies
+      - name: Audit production dependencies
         if: runner.os == 'Linux'
-        run: npx playwright install --with-deps chromium
-      - name: Install Chromium
-        if: runner.os != 'Linux'
-        run: npx playwright install chromium
-      - name: Check production server and browser
-        run: node scripts/check-server.mjs --browser
+        run: npm audit --omit=dev --audit-level=high

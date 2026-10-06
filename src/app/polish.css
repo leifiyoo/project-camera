@@ -56,28 +56,34 @@
   gap: 10px;
   min-width: 0;
 }
-.studio-brand {
+.topbar .studio-brand {
   display: inline-flex;
   align-items: center;
-  gap: 9px;
+  gap: 8px;
   flex: none;
+  height: 34px;
+  padding: 3px 11px 3px 3px;
+  border-radius: 11px;
 }
 .studio-mark {
   display: inline-grid;
   place-items: center;
   width: 28px;
   height: 28px;
-  border-radius: 9px;
+  border-radius: 8px;
   color: var(--inverse);
-  background: var(--text) linear-gradient(to bottom, rgb(255 255 255 / 0.22), rgb(255 255 255 / 0));
+  /* Light falls from the near (left) edge of the mark, like on the logo's screen. */
+  background:
+    radial-gradient(120% 120% at 0% 0%, rgb(255 255 255 / 0.2), rgb(255 255 255 / 0) 62%),
+    var(--text);
   box-shadow:
-    0 1px 2px rgb(0 0 0 / 0.18),
-    inset 0 0 0 0.5px rgb(255 255 255 / 0.12);
+    0 1px 2px rgb(0 0 0 / 0.16),
+    inset 0 0 0 0.5px rgb(255 255 255 / 0.14);
 }
 .studio-brand .studio-wordmark {
-  font-size: 15px;
-  font-weight: 650;
-  letter-spacing: -0.03em;
+  font-size: 14.5px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
   color: var(--text);
 }
 .topbar .top-divider {
@@ -132,31 +138,6 @@
   color: var(--muted);
   font-size: 14px;
 }
-.save-indicator {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  flex: none;
-  color: var(--muted);
-  font-size: 12px;
-  white-space: nowrap;
-  transition: color 200ms;
-}
-.save-indicator[data-state='pending'],
-.save-indicator[data-state='saving'] {
-  opacity: 0.75;
-}
-.save-indicator[data-state='saving'] svg {
-  animation: save-pulse 900ms ease-in-out infinite alternate;
-}
-.save-indicator[data-state='error'] {
-  color: #d4483b;
-}
-@keyframes save-pulse {
-  to {
-    opacity: 0.35;
-  }
-}
 .topbar-right {
   gap: 6px;
 }
@@ -172,10 +153,6 @@
 }
 .topbar .history-tools .icon-button:disabled {
   opacity: 0.35;
-}
-.topbar .header-copy .spinner {
-  width: 14px;
-  height: 14px;
 }
 
 /* Mode switch with the video teaser */
@@ -451,39 +428,6 @@ kbd,
     0 6px 16px rgb(0 0 0 / 0.12);
 }
 
-/* ---------- Projects ---------- */
-.project-list > div {
-  align-items: center;
-  gap: 4px;
-}
-.project-list > div > button:first-child {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.project-thumb {
-  display: inline-grid;
-  place-items: center;
-  flex: none;
-  width: 48px;
-  height: 34px;
-  border-radius: 8px;
-  overflow: hidden;
-  background: var(--well);
-  box-shadow: var(--well-edge);
-  color: var(--muted);
-}
-.project-thumb img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-.project-confirm {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding-right: 4px;
-}
 .danger-button {
   height: 28px;
   padding: 0 12px;
@@ -498,11 +442,6 @@ kbd,
 }
 .danger-button:hover {
   background: #bf3c30;
-}
-.project-confirm .text-button {
-  height: 28px;
-  padding: 0 10px;
-  font-size: 12.5px;
 }
 
 /* ---------- Sidebar controls ---------- */
@@ -596,17 +535,6 @@ kbd,
 .project-name-input {
   field-sizing: content;
   min-width: 6ch;
-}
-.project-list > div > button > span.project-thumb {
-  flex: 0 0 48px;
-  width: 48px;
-}
-.project-list .danger-button {
-  background: #d4483b;
-  color: #fff;
-}
-.project-list .danger-button:hover {
-  background: #bf3c30;
 }
 .shot-sidebar .rt-TextFieldRoot .rt-TextFieldSlot,
 .panel .rt-TextFieldRoot .rt-TextFieldSlot {
@@ -966,4 +894,304 @@ button.studio-select:active:not(:disabled),
   box-shadow: 0 0 0 1px rgb(255 255 255 / 0.55);
   border-radius: 4px;
   pointer-events: none;
+}
+
+/* ---------- Project path: Projects / name ---------- */
+.project-path {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+.topbar .project-path .project-trigger {
+  gap: 7px;
+  height: 30px;
+  padding: 0 10px 0 8px;
+  font-size: 13px;
+  font-weight: 500;
+}
+.project-path-separator {
+  color: var(--line);
+  font-size: 16px;
+  font-weight: 300;
+  user-select: none;
+}
+.project-path .project-name-input {
+  margin-left: 0;
+  font-size: 13.5px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.project-badge {
+  flex: none;
+  margin-left: 2px;
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: var(--surface2);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 550;
+  line-height: 1;
+}
+
+/* ---------- Save button ---------- */
+.topbar .save-button {
+  position: relative;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text);
+}
+.topbar .save-button:hover:not(:disabled) {
+  background: var(--surface2);
+}
+.topbar .save-button[data-state='unsaved']::after {
+  content: '';
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  width: 9px;
+  height: 9px;
+  border: 2px solid var(--bg);
+  border-radius: 50%;
+  background: var(--accent);
+}
+.topbar .save-button:disabled {
+  opacity: 1;
+  color: var(--muted);
+}
+.topbar .save-button[data-state='empty']:disabled {
+  opacity: 0.5;
+}
+.topbar .save-button .spinner {
+  width: 14px;
+  height: 14px;
+}
+
+/* ---------- Save dialog ---------- */
+.panel.save-dialog {
+  width: min(420px, calc(100vw - 32px));
+}
+.save-dialog form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 22px;
+}
+.save-dialog h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+.save-dialog .panel-note {
+  margin: -6px 0 0;
+}
+.save-dialog-name {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.save-dialog-name input {
+  height: 36px;
+  padding: 0 11px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13.5px;
+}
+.save-dialog-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+.save-dialog-actions .text-button {
+  margin-right: auto;
+  color: var(--muted);
+}
+.save-dialog-actions .secondary,
+.save-dialog-actions .primary {
+  height: 34px;
+  padding: 0 16px;
+  border-radius: 9px;
+  font-weight: 550;
+}
+
+/* ---------- Projects ---------- */
+.projects-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.projects-toolbar .panel-note {
+  margin: 0;
+}
+.projects-toolbar .primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 9px;
+  font-size: 12.5px;
+  font-weight: 550;
+}
+.project-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.project-card {
+  position: relative;
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: 0 0 0 1px var(--line);
+  transition: box-shadow 150ms;
+}
+.project-card:hover {
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--text) 22%, var(--line));
+}
+.project-card[data-open] {
+  box-shadow: 0 0 0 2px var(--text);
+}
+.panel .project-open {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding: 6px;
+  border-radius: 12px;
+  text-align: left;
+}
+.panel .project-open:hover:not(:disabled) {
+  background: transparent;
+}
+.project-cover {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 16 / 10;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--well);
+  box-shadow: var(--well-edge);
+  color: var(--muted);
+}
+.project-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.project-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  padding: 10px 4px 6px;
+}
+.project-meta b {
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.project-meta small {
+  color: var(--muted);
+  font-size: 11.5px;
+}
+.project-actions,
+.project-card .project-confirm {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.12);
+}
+.project-actions {
+  opacity: 0;
+  transition: opacity 120ms;
+}
+.project-card:hover .project-actions,
+.project-card:focus-within .project-actions {
+  opacity: 1;
+}
+.project-actions .icon-button {
+  width: 26px;
+  height: 26px;
+  color: var(--muted);
+}
+.project-confirm .danger-button,
+.project-confirm .text-button {
+  height: 26px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+.projects-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 40px 16px;
+  border-radius: 12px;
+  background: var(--well);
+  text-align: center;
+}
+.projects-empty b {
+  font-size: 14px;
+  font-weight: 600;
+}
+.projects-empty p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+.projects-files {
+  display: flex;
+  gap: 4px;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.projects-files .text-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
+}
+
+/* ---------- Media library actions ---------- */
+.shot-library-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 10px;
+}
+.shot-library-actions .rt-Button {
+  width: 100%;
+  margin: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .project-card,
+  .project-actions {
+    transition: none;
+  }
+}
+/* On narrower windows the project title needs the room more than the wordmark. */
+@media (max-width: 1180px) {
+  .topbar .studio-wordmark {
+    display: none;
+  }
+  .topbar .studio-brand {
+    padding-right: 3px;
+  }
 }

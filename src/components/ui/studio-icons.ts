@@ -1,4 +1,4 @@
-// One icon family for the workspace, matching the Whirl reference.
+// One icon family for the whole workspace.
 export {
   IconChevronDown as ChevronDown,
   IconPlus as Plus,
@@ -6,6 +6,7 @@ export {
   IconArrowBackUp as Undo2,
   IconArrowForwardUp as Redo2,
   IconDownload as Download,
+  IconDeviceFloppy as Save,
   IconDeviceDesktop as Monitor,
   IconMovie as Film,
   IconPhotoPlus as ImagePlus,

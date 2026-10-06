@@ -14,7 +14,7 @@ export function canvasBlob(canvas: HTMLCanvasElement, type = 'image/png'): Promi
     ),
   );
 }
-async function safeSvg(file: Blob) {
+export async function safeSvg(file: Blob) {
   const xml = await file.text();
   const doc = new DOMParser().parseFromString(xml, 'image/svg+xml');
   if (doc.querySelector('parsererror,script,foreignObject'))

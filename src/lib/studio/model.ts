@@ -253,6 +253,10 @@ export function makeProject(asset?: Asset): Project {
     scenes: [],
   };
 }
+/** A project without media, text or clips: the blank start screen. */
+export function isEmptyProject(project: Project) {
+  return !project.photo.assetId && !project.photo.layers.length && !project.scenes.length;
+}
 export function referencedAssetIds(project: Project): string[] {
   const ids = new Set<string>();
   for (const s of [project.photo, ...project.scenes]) {

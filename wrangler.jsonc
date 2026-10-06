@@ -1,0 +1,10 @@
+// Cloudflare Workers static assets: `npm run build`, then `npx wrangler deploy`.
+// Cloudflare Pages needs no config: build command `npm run build`, output directory `out`.
+{
+  "name": "project-camera",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    "directory": "./out",
+    "not_found_handling": "404-page"
+  }
+}

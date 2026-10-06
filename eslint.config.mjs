@@ -11,5 +11,5 @@ export default defineConfig([
       '@next/next/no-img-element': 'off',
     },
   },
-  globalIgnores(['.next/**', '.npm-cache/**', 'next-env.d.ts', 'verification/**']),
+  globalIgnores(['.next/**', '.npm-cache/**', 'out/**', 'next-env.d.ts']),
 ]);

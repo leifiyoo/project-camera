@@ -10,7 +10,7 @@ import {
   Type,
   Upload,
 } from '@/components/ui/studio-icons';
-import { PaperSegmentedControl } from '@/components/ui/paper-segmented-control';
+import { SegmentedControl } from '@/components/ui/segmented-control';
 import { selectedScene, useStudio } from '@/lib/studio/store';
 import {
   makeLogo,
@@ -135,7 +135,7 @@ export function LogoSection({
       </div>
       {logo.enabled && (
         <div className="logo-settings">
-          <PaperSegmentedControl
+          <SegmentedControl
             className="logo-kind-switch"
             size="sm"
             fullWidth
@@ -392,7 +392,7 @@ export function TextSection() {
             />
           </Field>
           <Field label="Align">
-            <PaperSegmentedControl
+            <SegmentedControl
               aria-label="Text alignment"
               size="sm"
               fullWidth

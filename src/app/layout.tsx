@@ -1,10 +1,8 @@
 import type { Metadata } from 'next';
 import localFont from 'next/font/local';
-import '@fontsource/inter/400.css';
-import '@fontsource/inter/500.css';
-import '@fontsource/inter/600.css';
-import '@fontsource/inter/700.css';
-import '@radix-ui/themes/styles.css';
+// Only tokens and component styles: the app uses no Radix layout or utility props.
+import '@radix-ui/themes/tokens.css';
+import '@radix-ui/themes/components.css';
 import './globals.css';
 import './sidebar.css';
 import './controls.css';
@@ -13,13 +11,13 @@ import './studio.css';
 import './whirl.css';
 import './polish.css';
 const inter = localFont({
-  src: '../../public/fonts/InterVariable.woff2',
+  src: '../fonts/InterVariable.woff2',
   variable: '--font-studio',
   display: 'swap',
   weight: '100 900',
 });
 export const metadata: Metadata = {
-  title: 'Interface Studio',
+  title: 'Project Camera',
   description: 'A local photo and motion studio for software interfaces.',
 };
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

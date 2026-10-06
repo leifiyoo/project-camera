@@ -1,22 +1,22 @@
 /* Shared neutral workspace, with a focused timeline and a docked video inspector. */
-.workspace-mode[data-slot='paper-segmented-control'] {
-  --paper-segment-item-height: 32px;
-  --paper-segment-item-padding: 20px;
-  --paper-segment-inset: 4px;
-  --paper-segment-radius: 9px;
-  --paper-segment-background: var(--surface2);
-  --paper-segment-active: var(--surface);
-  --paper-segment-foreground: var(--text);
-  --paper-segment-muted: var(--muted);
-  --paper-segment-focus: var(--accent);
+.workspace-mode[data-slot='segmented-control'] {
+  --segment-item-height: 32px;
+  --segment-item-padding: 20px;
+  --segment-inset: 4px;
+  --segment-radius: 9px;
+  --segment-background: var(--surface2);
+  --segment-active: var(--surface);
+  --segment-foreground: var(--text);
+  --segment-muted: var(--muted);
+  --segment-focus: var(--accent);
   min-width: 184px;
   gap: 8px;
 }
-.workspace-mode [data-slot='paper-segment'] {
+.workspace-mode [data-slot='segment'] {
   min-width: 82px;
   font-weight: 550;
 }
-.workspace-mode [data-slot='paper-segment-indicator'] {
+.workspace-mode [data-slot='segment-indicator'] {
   box-shadow: 0 1px 3px #24242912;
 }
 .video-studio .workspace {
