@@ -38,6 +38,7 @@ import {
   uid,
   makeProject,
   makeScene,
+  makeLogo,
   type Asset,
   type Layer,
   type Project,
@@ -375,19 +376,12 @@ export default function Editor() {
           } else if (purpose === 'logo') {
             const a = imported.find((a) => a.kind === 'image');
             if (a) {
-              const layer: Layer = {
-                id: uid(),
-                kind: 'logo',
+              current!.logo = {
+                ...(current!.logo ?? makeLogo()),
+                enabled: true,
+                kind: 'image',
                 assetId: a.id,
-                x: 0.85,
-                y: 0.12,
-                width: 0.12,
-                opacity: 1,
-                start: 0,
-                end: 3600,
               };
-              current!.layers.push(layer);
-              s.selectLayer(layer.id);
             } else errors.push('Choose a PNG or SVG image for a logo.');
           } else if (purpose === 'replace') {
             if (imported[0].kind === 'video' && s.mode === 'photo') {
@@ -430,7 +424,6 @@ export default function Editor() {
             playing: false,
           });
         }
-        if (purpose === 'logo' && s.mode === 'photo') setPanel('inspector');
         if (purpose === 'media') setPanel(null);
       }
       setImportStatus('');
@@ -1190,9 +1183,6 @@ export default function Editor() {
               <Stage
                 quality={quality}
                 focusRequest={focusRequest}
-                onLayers={() => {
-                  if (mode === 'photo') setPanel('inspector');
-                }}
                 assets={assets}
                 onImport={chooseFiles}
                 onPickFocus={pickFocus}
@@ -1226,7 +1216,6 @@ export default function Editor() {
               assets={assets}
               onImport={chooseFiles}
               onPickFocus={pickFocus}
-              onAdvanced={() => setPanel('inspector')}
               onLibrary={() => {
                 void refresh();
                 setPanel('library');
@@ -1554,14 +1543,8 @@ export default function Editor() {
             'frame',
             'shadow',
             'aspect',
-            'inspector',
           ].includes(panel) && (
-            <Panel
-              title={titleFor(panel as InspectorKind)}
-              onClose={closePanel}
-              centered={panel === 'inspector'}
-              wide={panel === 'inspector'}
-            >
+            <Panel title={titleFor(panel as InspectorKind)} onClose={closePanel}>
               <Inspector
                 kind={panel as InspectorKind}
                 assets={assets}

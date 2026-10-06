@@ -52,6 +52,7 @@ export async function unpackProject(file: Blob): Promise<Project> {
     if (s.assetId) s.assetId = remap.get(s.assetId);
     if (s.background.assetId) s.background.assetId = remap.get(s.background.assetId);
     for (const l of s.layers) if (l.kind === 'logo') l.assetId = remap.get(l.assetId)!;
+    if (s.logo?.assetId) s.logo.assetId = remap.get(s.logo.assetId);
   }
   for (const r of records) r.meta.id = remap.get(r.meta.id)!;
   const db = await database();

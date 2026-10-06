@@ -12,12 +12,12 @@ import { VIDEO_MODE_ENABLED } from '@/lib/studio/features';
 import { defaultPose, type Asset } from '@/lib/studio/model';
 import { selectedScene, useStudio } from '@/lib/studio/store';
 import Inspector, { type MediaTarget } from './Inspector';
+import { LogoSection, TextSection } from './OverlaySettings';
 import { IconButton } from './primitives';
 type Props = {
   assets: Asset[];
   onImport: (target: MediaTarget) => void;
   onPickFocus: () => void;
-  onAdvanced: () => void;
   onLibrary: () => void;
   onUseAsset: (asset: Asset) => void;
 };
@@ -25,7 +25,6 @@ export default function ShotSidebar({
   assets,
   onImport,
   onPickFocus,
-  onAdvanced,
   onLibrary,
   onUseAsset,
 }: Props) {
@@ -60,19 +59,12 @@ export default function ShotSidebar({
           <Tabs.Trigger value="library">Library</Tabs.Trigger>
         </Tabs.List>
         <Tabs.Content value="design" className="shot-sidebar-content" aria-label="Design settings">
-          {scene?.kind === 'text' ? (
-            <section className="shot-sidebar-section">
-              <h2>Text &amp; layers</h2>
-              <Button variant="soft" color="gray" className="secondary full" onClick={onAdvanced}>
-                Edit text and layers
-              </Button>
-            </section>
-          ) : hasContent ? (
+          {hasContent && scene?.kind !== 'text' && (
             <section className="shot-sidebar-section" aria-label="Focus and depth">
               <h2>Focus</h2>
               <Inspector kind="focus" {...inspectorProps} />
             </section>
-          ) : null}
+          )}
           {hasContent && (
             <section className="shot-sidebar-section" aria-label="Camera settings">
               <div className="section-heading">
@@ -116,12 +108,8 @@ export default function ShotSidebar({
               <Inspector kind="shadow" {...inspectorProps} />
             </section>
           )}
-          {hasContent && scene?.kind !== 'text' && (
-            <section className="shot-sidebar-section" aria-label="Text and logos">
-              <h2>Text &amp; logos</h2>
-              <Inspector kind="inspector" section="layers" {...inspectorProps} />
-            </section>
-          )}
+          {hasContent && <TextSection />}
+          {hasContent && <LogoSection assets={assets} onImport={onImport} />}
           <section className="shot-sidebar-section" aria-label="Canvas settings">
             <h2>Canvas</h2>
             <Inspector kind="aspect" {...inspectorProps} />

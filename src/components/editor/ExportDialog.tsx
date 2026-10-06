@@ -5,6 +5,7 @@ import { useStudio } from '@/lib/studio/store';
 import { runtime } from '@/lib/studio/runtime';
 import { outputDimensions, totalDuration } from '@/lib/studio/evaluate';
 import { clone } from '@/lib/studio/model';
+import { VIDEO_MODE_ENABLED } from '@/lib/studio/features';
 import { download, filename } from '@/lib/export/download';
 import type { ExportSettings, Support } from '@/lib/export/render-export';
 import { importMedia } from '@/lib/media/import';
@@ -19,7 +20,9 @@ export default function ExportDialog({
 }) {
   const project = useStudio((s) => s.project)!;
   const mode = useStudio((s) => s.mode);
-  const [type, setType] = useState<'png' | 'video'>(mode === 'photo' ? 'png' : 'video');
+  const [type, setType] = useState<'png' | 'video'>(
+    VIDEO_MODE_ENABLED && mode === 'video' ? 'video' : 'png',
+  );
   const [resolution, setResolution] = useState('1920');
   const [longEdge, setLongEdge] = useState(1920);
   const [fps, setFps] = useState<30 | 60>(30);
@@ -288,20 +291,22 @@ export default function ExportDialog({
             )}
           </div>
           <div className="export-options">
-            <PaperSegmentedControl
-              aria-label="Export type"
-              value={type}
-              fullWidth
-              disabled={busy}
-              options={[
-                { value: 'png', label: 'Image' },
-                { value: 'video', label: 'Video', disabled: !project.scenes.length },
-              ]}
-              onValueChange={(value) => {
-                setType(value as 'png' | 'video');
-                setResult(null);
-              }}
-            />
+            {VIDEO_MODE_ENABLED && (
+              <PaperSegmentedControl
+                aria-label="Export type"
+                value={type}
+                fullWidth
+                disabled={busy}
+                options={[
+                  { value: 'png', label: 'Image' },
+                  { value: 'video', label: 'Video', disabled: !project.scenes.length },
+                ]}
+                onValueChange={(value) => {
+                  setType(value as 'png' | 'video');
+                  setResult(null);
+                }}
+              />
+            )}
             <fieldset disabled={busy} className="export-settings">
               <Field label="Resolution">
                 <Select
