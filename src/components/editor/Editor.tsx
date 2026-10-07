@@ -481,10 +481,12 @@ export default function Editor() {
       }
     };
     const keydown = (e: KeyboardEvent) => {
+      // Keys can also arrive on the document or window, which have no closest().
+      const target = e.target instanceof Element ? e.target : null;
       if (
         editable(e.target) ||
         exporting ||
-        (e.target as Element)?.closest('[role="dialog"]') ||
+        target?.closest('[role="dialog"]') ||
         document.querySelector('[data-studio-popup]')
       )
         return;
@@ -493,10 +495,10 @@ export default function Editor() {
       const cmd = e.ctrlKey || e.metaKey;
       if (
         (e.key === ' ' || e.key === 'Enter') &&
-        (e.target as Element)?.closest('button,summary,a[href],[role="button"]')
+        target?.closest('button,summary,a[href],[role="button"]')
       )
         return;
-      const widget = (e.target as Element)?.closest(
+      const widget = target?.closest(
         '[role="slider"],[role="tab"],[role="radio"],[role="menuitem"],[role="option"]',
       );
       if (cmd && e.key.toLowerCase() === 'o') {

@@ -126,7 +126,8 @@ function SplitButton() {
     const key = (e: KeyboardEvent) => {
       if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== 'b') return;
       if (
-        (e.target as Element)?.closest('input,textarea,[contenteditable], [role="dialog"]') ||
+        (e.target instanceof Element &&
+          e.target.closest('input,textarea,[contenteditable], [role="dialog"]')) ||
         document.querySelector('[role="dialog"], [data-studio-popup]')
       )
         return;
