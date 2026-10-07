@@ -48,7 +48,14 @@ function linearGradient(
   g.addColorStop(1, to);
   return g;
 }
-type Subject = { group: THREE.Group; screen: THREE.Mesh; w: number; h: number; signature: string };
+type Subject = {
+  group: THREE.Group;
+  screen: THREE.Mesh;
+  stroke: THREE.Mesh | null;
+  w: number;
+  h: number;
+  signature: string;
+};
 export class StudioRenderer {
   readonly canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
@@ -186,7 +193,8 @@ export class StudioRenderer {
   }
   private subject(scene: Scene, asset: Asset): Subject {
     const radius = Math.max(0, scene.frame.radius || 0);
-    const signature = JSON.stringify([asset.width, asset.height, radius]);
+    const strokeWidth = Math.max(0, scene.frame.stroke?.width || 0);
+    const signature = JSON.stringify([asset.width, asset.height, radius, strokeWidth]);
     const cached = this.subjects.get(scene.id);
     if (cached?.signature === signature) return cached;
     if (cached) this.clearSubject(cached);
@@ -199,8 +207,9 @@ export class StudioRenderer {
       w = h * aspect;
     }
     // Imported media is a single image plane. No backing, frame or extrusion may
-    // fill transparent pixels or add a border; an optional corner radius only clips.
-    const shape = roundedShape(w, h, radius * Math.min(w, h));
+    // fill transparent pixels; an optional corner radius only clips.
+    const corner = radius * Math.min(w, h);
+    const shape = roundedShape(w, h, corner);
     const geo = new THREE.ShapeGeometry(shape, radius ? 32 : 1);
     const uv = geo.getAttribute('uv');
     for (let i = 0; i < uv.count; i++)
@@ -213,9 +222,23 @@ export class StudioRenderer {
     });
     const screen = new THREE.Mesh(geo, material);
     group.add(screen);
+    // The stroke is a ring that starts exactly at the image edge, so it never
+    // covers the media or z-fights with it. Its corners stay concentric.
+    let stroke: THREE.Mesh | null = null;
+    if (strokeWidth) {
+      const s = strokeWidth * Math.min(w, h);
+      const ring = roundedShape(w + s * 2, h + s * 2, corner ? corner + s : 0);
+      ring.holes.push(roundedShape(w, h, corner));
+      stroke = new THREE.Mesh(
+        new THREE.ShapeGeometry(ring, radius ? 32 : 1),
+        new THREE.MeshBasicMaterial({ side: THREE.DoubleSide, transparent: true }),
+      );
+      group.add(stroke);
+    }
     const result = {
       group,
       screen,
+      stroke,
       w,
       h,
       signature,
@@ -323,6 +346,11 @@ export class StudioRenderer {
             mat.map = tex;
             mat.needsUpdate = true;
           }
+          if (subject.stroke && f.stroke) {
+            const strokeMat = subject.stroke.material as THREE.MeshBasicMaterial;
+            strokeMat.color.set(f.stroke.color);
+            strokeMat.opacity = f.stroke.opacity;
+          }
           const focus = this.surfacePoint(pose.focusX, pose.focusY)!;
           focus.applyMatrix4(this.camera.matrixWorldInverse);
           const uniforms = this.bokeh!.materialBokeh.uniforms;
@@ -357,6 +385,15 @@ export class StudioRenderer {
           ctx.shadowColor = `rgba(0,0,0,${scene.shadowIntensity})`;
           ctx.shadowBlur = scene.shadow === 'off' ? 0 : h * 0.025;
           ctx.drawImage(source, -dw / 2, -dh / 2, dw, dh);
+          const stroke = scene.frame.stroke;
+          if (stroke?.width) {
+            const lw = stroke.width * Math.min(dw, dh);
+            ctx.shadowColor = 'transparent';
+            ctx.globalAlpha = stroke.opacity;
+            ctx.strokeStyle = stroke.color;
+            ctx.lineWidth = lw;
+            ctx.strokeRect(-dw / 2 - lw / 2, -dh / 2 - lw / 2, dw + lw, dh + lw);
+          }
           ctx.restore();
         }
       }

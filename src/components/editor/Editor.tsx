@@ -1546,7 +1546,7 @@ export default function Editor() {
             <ol className="help-steps">
               <li>Import, drop or paste an image or screenshot.</li>
               <li>Pick a background preset or gradient, then set the angle and zoom.</li>
-              <li>Round the corners, adjust the shadow and add text or a logo.</li>
+              <li>Round the corners, add a stroke, adjust the shadow and add text or a logo.</li>
               <li>Choose Manual focus and click your subject for depth blur.</li>
               <li>Save to Projects, then export a full-resolution PNG.</li>
             </ol>

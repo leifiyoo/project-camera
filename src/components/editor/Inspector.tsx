@@ -16,7 +16,16 @@ import { SegmentedControl } from '@/components/ui/segmented-control';
 import { useStudio, selectedScene } from '@/lib/studio/store';
 import { runtime } from '@/lib/studio/runtime';
 import { cameraAtTime, timelineSpans } from '@/lib/studio/evaluate';
-import { type Asset, type CameraPose, clone, uid, clamp, makeText } from '@/lib/studio/model';
+import {
+  type Asset,
+  type CameraPose,
+  type Stroke,
+  clone,
+  uid,
+  clamp,
+  makeStroke,
+  makeText,
+} from '@/lib/studio/model';
 import { Field, NumberField, Range, IconButton, Select, SelectOption } from './primitives';
 import ColorPicker from './ColorPicker';
 import { UIIcon } from './UIIcon';
@@ -446,6 +455,12 @@ export default function Inspector({
       />
     </>
   );
+  const stroke = scene.frame.stroke ?? makeStroke();
+  const editStroke = (fn: (stroke: Stroke) => void) =>
+    edit((s) => {
+      s.frame.stroke ??= makeStroke();
+      fn(s.frame.stroke);
+    });
   const shadow = (
     <>
       <Range
@@ -459,6 +474,44 @@ export default function Inspector({
           })
         }
       />
+      <Range
+        label="Stroke"
+        value={stroke.width * 1000}
+        max={50}
+        step={0.5}
+        onChange={(v) =>
+          editStroke((st) => {
+            st.width = v / 1000;
+          })
+        }
+      />
+      {stroke.width > 0 && (
+        <>
+          <Field label="Stroke color">
+            <ColorPicker
+              key={scene.id + 'stroke'}
+              value={stroke.color}
+              onChange={(value) =>
+                editStroke((st) => {
+                  st.color = value;
+                })
+              }
+            />
+          </Field>
+          <Range
+            label="Stroke opacity"
+            value={Math.round(stroke.opacity * 100)}
+            max={100}
+            step={1}
+            unit="%"
+            onChange={(v) =>
+              editStroke((st) => {
+                st.opacity = v / 100;
+              })
+            }
+          />
+        </>
+      )}
       <Field label="Shadow size">
         <Select
           value={scene.shadow}

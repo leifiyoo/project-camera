@@ -46,6 +46,14 @@ export type FrameStyle = {
   cropX: number;
   cropY: number;
   cropZoom: number;
+  /** Outline around the outside of the image edge. */
+  stroke?: Stroke;
+};
+export type Stroke = {
+  /** Line width as a fraction of the image's shorter side. */
+  width: number;
+  color: string;
+  opacity: number;
 };
 export type Background = {
   kind: 'color' | 'gradient' | 'image' | 'transparent';
@@ -238,6 +246,9 @@ export function makeLogo(): Logo {
     opacity: 0.9,
     margin: 0.05,
   };
+}
+export function makeStroke(): Stroke {
+  return { width: 0, color: '#ffffff', opacity: 1 };
 }
 export function makeProject(asset?: Asset): Project {
   const now = Date.now();

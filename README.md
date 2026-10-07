@@ -12,7 +12,7 @@
   Drop in a screenshot, frame it with a real 3D camera, add depth blur and shadows, and export a polished PNG.
 </p>
 
-<p align="center">No account · No uploads · No tracking · No watermark</p>
+<p align="center">No account · No uploads · No watermark</p>
 
 <p align="center">
   <img src="docs/showcase.webp" alt="Project Camera showing its own editor in 3D perspective with depth blur" width="100%" />
@@ -24,7 +24,7 @@
 
 - **Camera:** zoom, rotate and tilt your image in true 3D perspective
 - **Depth blur:** pick a focus point by hand or automatically and set the blur strength
-- **Design:** background, soft shadow, aspect ratio, text and logos
+- **Design:** background, stroke, soft shadow, aspect ratio, text and logos
 - **Export:** PNG at HD, 2K, 4K or a custom size, with transparency
 - **Projects:** save your work in the browser and export project files to move it between devices
 
