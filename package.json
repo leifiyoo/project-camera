@@ -15,7 +15,7 @@
     "@radix-ui/themes": "^3.3.0",
     "@tabler/icons-react": "^3.48.0",
     "@tailwindcss/postcss": "^4.3.3",
-    "@vercel/analytics": "^1.4.1",
+    "@vercel/analytics": "^2.0.1",
     "fflate": "^0.8.3",
     "idb": "^8.0.3",
     "immer": "^11.1.21",
