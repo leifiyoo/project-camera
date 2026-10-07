@@ -93,9 +93,7 @@ const scene = z.object({
     cropX: num.min(0).max(1),
     cropY: num.min(0).max(1),
     cropZoom: num.min(1).max(4),
-    stroke: z
-      .object({ width: num.min(0).max(0.1), color, opacity: num.min(0).max(1) })
-      .optional(),
+    stroke: z.object({ width: num.min(0).max(0.1), color, opacity: num.min(0).max(1) }).optional(),
   }),
   background: z.object({
     kind: z.enum(['color', 'gradient', 'image', 'transparent']),

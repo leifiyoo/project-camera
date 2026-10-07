@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest';
 import { makeProject, makeScene, uid, referencedAssetIds, type AssetRecord } from '../studio/model';
 import { saveProject, getProject, saveAsset, getAsset, deleteAsset } from './db';
 import { packProject, unpackProject } from './package';
-import { assetSchema } from './schema';
+import { assetSchema, projectSchema } from './schema';
 describe('local documents and portable media', () => {
   it('saves and packages an empty project without inventing a scene', async () => {
     const project = makeProject();
@@ -66,6 +66,13 @@ describe('local documents and portable media', () => {
   });
 });
 describe('untrusted project packages', () => {
+  it('keeps a valid image stroke and rejects an out-of-range one', () => {
+    const project = makeProject();
+    project.photo.frame.stroke = { width: 0.004, color: '#ffffff', opacity: 0.5 };
+    expect(projectSchema.parse(project).photo.frame.stroke).toEqual(project.photo.frame.stroke);
+    project.photo.frame.stroke = { width: 1, color: 'white', opacity: 2 };
+    expect(projectSchema.safeParse(project).success).toBe(false);
+  });
   const meta = (mime: string) => ({
     id: uid(),
     name: 'media',
