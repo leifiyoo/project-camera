@@ -30,8 +30,7 @@
 
 ## 🔒 Privacy
 
-Project Camera runs entirely in your browser. Images, videos and projects never leave your device: there is
-no backend, no analytics and no third-party request. Projects live in the browser's IndexedDB, so
+Project Camera runs entirely in your browser. Images, videos and projects never leave your device. Projects live in the browser's IndexedDB, so
 clearing site data deletes them. Use **Projects → Export project file** to keep a backup.
 
 The published site enforces this with a strict Content Security Policy that only allows the site's
