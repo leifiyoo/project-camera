@@ -20,6 +20,9 @@ const inter = localFont({
 export const metadata: Metadata = {
   title: 'Project Camera',
   description: 'A local photo and motion studio for software interfaces.',
+  verification: {
+    google: 'ZK8Fr0Tf5CcvsUb7jVvZwDFyUHZGl6gOXFY7mddNpfo',
+  },
 };
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
