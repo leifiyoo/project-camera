@@ -36,7 +36,7 @@ for (const page of pages) {
     .filter(Boolean)
     .map((body) => createHash('sha256').update(body).digest('base64'));
   const meta = `<meta http-equiv="Content-Security-Policy" content="${policy([...new Set(hashes)])}"/>`;
-  if (!html.includes('<head>')) throw new Error(`${path} has no <head>.`);
+  if (!html.includes('<head>')) continue;
   await writeFile(path, html.replace('<head>', `<head>${meta}`));
 }
 
