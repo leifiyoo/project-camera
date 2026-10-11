@@ -72,6 +72,10 @@ a flat view.
 
 Set the Node.js version to 24 on hosts that don't read `.nvmrc`.
 
+Canonical links, Open Graph tags, `robots.txt` and `sitemap.xml` use the site's public address. Vercel
+fills it in from the production domain; on other hosts, set `NEXT_PUBLIC_SITE_URL` (see `.env.example`)
+before building.
+
 To preview a production build locally, run `npm run build` and serve `out/` with any static file
 server, for example `npx serve out`.
 
