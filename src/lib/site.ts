@@ -11,8 +11,9 @@ function resolveSiteUrl() {
 export const site = {
   name: 'Project Camera',
   url: resolveSiteUrl(),
-  title: 'Project Camera: 3D product shots and UI mockups in your browser',
+  // Leads with the search terms: the name alone doesn't say what the site does.
+  title: 'Free 3D Screenshot Mockup Generator | Project Camera',
   description:
-    'A free, private photo studio for product shots and UI mockups. Frame screenshots with a real 3D camera, add depth blur and shadows, and export PNGs up to 4K.',
+    'Turn screenshots into 3D mockups and product shots with perspective, depth blur, shadows and backgrounds. Export PNGs up to 4K. Free, no upload, no watermark.',
   repository: 'https://github.com/leifiyoo/project-camera',
 } as const;

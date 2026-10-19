@@ -12,3 +12,7 @@
 
 /_next/static/*
   Cache-Control: public, max-age=31536000, immutable
+
+# Font files carry their version in the name.
+/fonts/*
+  Cache-Control: public, max-age=31536000, immutable

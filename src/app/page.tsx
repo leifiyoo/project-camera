@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Editor from '@/components/editor/Editor';
+import Landing from '@/components/landing/Landing';
 
 // Only the home page is canonical and indexable; the 404 page keeps Next.js's noindex.
 export const metadata: Metadata = {
@@ -12,5 +13,5 @@ export const metadata: Metadata = {
 };
 
 export default function Page() {
-  return <Editor />;
+  return <Editor landing={<Landing />} />;
 }
