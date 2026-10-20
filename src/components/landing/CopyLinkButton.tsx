@@ -15,11 +15,11 @@ export function CopyLinkButton() {
   };
   return (
     <>
-      <button type="button" className="primary landing-copy" onClick={() => void copy()}>
+      <button type="button" className="lp-copy" onClick={() => void copy()}>
         {status === 'copied' ? <Check size={16} /> : <Copy size={16} />}
         {status === 'copied' ? 'Link copied' : 'Copy link'}
       </button>
-      <p className="landing-copy-status" role="status">
+      <p className="lp-copy-status" role="status">
         {status === 'copied'
           ? 'Open it on your computer to start.'
           : status === 'failed'

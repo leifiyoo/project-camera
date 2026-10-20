@@ -1,51 +1,33 @@
-// Copy for the landing page, with an icon for each feature. Search engines index the phone
-// layout, so this is the text they read; keep it true to what the studio does. The FAQ also
-// feeds the page's structured data.
-import {
-  IconAspectRatio,
-  IconBackground,
-  IconFocus2,
-  IconFolderOpen,
-  IconPhotoDown,
-  IconRotate3d,
-  IconTypography,
-} from '@tabler/icons-react';
-
+// Copy for the landing page. Search engines index the phone layout, so this is the text they
+// read; keep it true to what the studio does. The FAQ also feeds the page's structured data.
 export const features = [
   {
-    icon: IconRotate3d,
     title: '3D camera',
-    text: 'Zoom, rotate and tilt your image in true 3D perspective, and widen or narrow the field of view.',
+    text: 'Zoom, rotate and tilt your image in true perspective. Widen or narrow the field of view.',
   },
   {
-    icon: IconFocus2,
     title: 'Depth blur',
-    text: 'Set the focus point by hand or automatically, then choose how softly the rest falls out of focus.',
+    text: 'Set the focus point by hand or automatically, and choose how softly the rest falls away.',
   },
   {
-    icon: IconBackground,
     title: 'Backgrounds and style',
-    text: 'Use a solid color, a gradient, an image or no background. Add rounded corners, a stroke and a soft shadow.',
+    text: 'A color, a gradient, an image or nothing at all. Rounded corners, a stroke, a soft shadow.',
   },
   {
-    icon: IconTypography,
     title: 'Text and logos',
     text: 'Place a headline, a caption or your logo on the canvas.',
   },
   {
-    icon: IconAspectRatio,
     title: 'Every format',
-    text: 'Frame the shot for slides, posts or stories: 16:9, 3:2, 4:3, 1:1, 4:5, 9:16 or 21:9.',
+    text: 'Slides, posts or stories: 16:9, 3:2, 4:3, 1:1, 4:5, 9:16 or 21:9.',
   },
   {
-    icon: IconPhotoDown,
     title: 'Export up to 4K',
-    text: 'Download a PNG at HD, 2K, 4K or a custom size, with a transparent background if you need one.',
+    text: 'PNG at HD, 2K, 4K or a custom size, with a transparent background if you need one.',
   },
   {
-    icon: IconFolderOpen,
     title: 'Projects',
-    text: 'Save your work in the browser and move it to another computer as a project file.',
+    text: 'Save your work in the browser, or take it to another computer as a project file.',
   },
 ] as const;
 
@@ -59,11 +41,11 @@ export const steps = [
   },
   {
     title: 'Frame the shot',
-    text: 'Hold Ctrl or ⌘ and drag to rotate the camera, or scroll to zoom. Pick a focus point, set the depth blur and style the background.',
+    text: 'Hold Ctrl or ⌘ and drag to rotate the camera, scroll to zoom. Pick a focus point, set the blur, style the background.',
   },
   {
     title: 'Export a PNG',
-    text: 'Choose HD, 2K, 4K or a custom size and download your image. Save the project to keep editing later.',
+    text: 'Choose HD, 2K, 4K or a custom size and download. Save the project to keep editing later.',
   },
 ] as const;
 
