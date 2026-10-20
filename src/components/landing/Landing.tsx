@@ -1,9 +1,7 @@
-import { IconDeviceDesktop, IconShieldLock } from '@tabler/icons-react';
 import { BrandMark } from '@/components/ui/brand-mark';
 import { site } from '@/lib/site';
 import { CopyLinkButton } from './CopyLinkButton';
 import { facts, faq, features, steps } from './content';
-import { HeroShot } from './HeroShot';
 import showcase from './showcase.webp';
 
 // FAQPage data mirrors the visible questions. `<` is escaped so the JSON can never close the tag.
@@ -17,6 +15,25 @@ const faqJsonLd = JSON.stringify({
   })),
 }).replace(/</g, '\\u003c');
 
+const BANNER = String.raw`
+ ██████╗ █████╗ ███╗   ███╗███████╗██████╗  █████╗
+██╔════╝██╔══██╗████╗ ████║██╔════╝██╔══██╗██╔══██╗
+██║     ███████║██╔████╔██║█████╗  ██████╔╝███████║
+██║     ██╔══██║██║╚██╔╝██║██╔══╝  ██╔══██╗██╔══██║
+╚██████╗██║  ██║██║ ╚═╝ ██║███████╗██║  ██║██║  ██║
+ ╚═════╝╚═╝  ╚═╝╚═╝     ╚═╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝`.slice(1);
+
+const LOCK = String.raw`
+   .-----.
+  / .---. \
+  | |   | |
+ _| |___| |_
+|  _______  |
+| |  ___  | |
+| | [___] | |
+| |_______| |
+|___________|`.slice(1);
+
 /**
  * What Project Camera is and how it works. Screens narrower than the studio show this page
  * instead of the editor; it is also the page search engines index, since they read the phone
@@ -25,51 +42,82 @@ const faqJsonLd = JSON.stringify({
 export default function Landing() {
   return (
     <section className="landing" aria-labelledby="landing-title">
-      <p className="landing-brand">
-        <span className="studio-mark" aria-hidden="true">
-          <BrandMark size={15} />
+      <header className="lp-top">
+        <span>
+          <BrandMark size={14} />
+          {site.name}
         </span>
-        {site.name}
-      </p>
+        <a href={site.repository}>source ↗</a>
+      </header>
+
+      <pre className="lp-banner" aria-hidden="true">
+        {BANNER}
+      </pre>
       <h1 id="landing-title">
-        Turn screenshots into 3D mockups <span>and product shots</span>
+        Turn screenshots into <mark>3D mockups</mark> and product shots
       </h1>
-      <p className="landing-lead">
-        {site.name} is a free mockup generator that runs in your browser. Frame a screenshot or
-        product photo with a real 3D camera, add depth blur, a shadow and a background, and export a
-        polished PNG up to 4K.
+      <p className="lp-lead">
+        {site.name} is a free mockup generator that runs in your browser: point a real 3D camera at
+        a screenshot or product photo, add depth blur, a shadow and a background, and export a PNG
+        up to 4K.
       </p>
-      <ul className="landing-facts">
+      <ul className="lp-facts">
         {facts.map((fact) => (
           <li key={fact}>{fact}</li>
         ))}
       </ul>
-      <div className="landing-desktop">
-        <IconDeviceDesktop className="landing-icon" size={20} stroke={1.75} aria-hidden="true" />
+
+      {/* A real export: the studio shot in 3D, with depth blur, on a transparent background.
+          Lazy, so wide screens, which never show this page, never fetch it; on phones it is in
+          view and loads right after the headline paints. */}
+      <figure className="lp-shot">
+        <figcaption>
+          <span>
+            <i /> export.png
+          </span>
+          <span>made with {site.name}</span>
+        </figcaption>
+        <div>
+          <img
+            src={showcase.src}
+            width={showcase.width}
+            height={showcase.height}
+            alt="The Project Camera editor showing a web page in 3D perspective with depth blur, next to its focus, camera and background settings"
+            loading="lazy"
+            decoding="async"
+          />
+        </div>
+        <p>3D camera · depth blur · transparent PNG</p>
+      </figure>
+
+      <div className="lp-desktop">
         <p>
-          The studio is made for a larger screen, a mouse and a keyboard. Open this page on your
-          computer to start editing.
+          <strong>Made for a big screen.</strong> The studio needs a mouse and a keyboard. Open this
+          page on your computer to start editing.
         </p>
         <CopyLinkButton />
       </div>
-      <HeroShot />
+
       <section aria-labelledby="landing-features">
-        <p className="landing-kicker">Features</p>
+        <p className="lp-kicker">01 / features</p>
         <h2 id="landing-features">Everything a product shot needs</h2>
-        <ul className="landing-features">
-          {features.map(({ icon: Icon, title, text }) => (
+        <ul className="lp-features">
+          {features.map(({ title, text }, i) => (
             <li key={title}>
-              <Icon className="landing-icon" size={20} stroke={1.75} aria-hidden="true" />
-              <h3>{title}</h3>
+              <h3>
+                <span aria-hidden="true">{String(i + 1).padStart(2, '0')}</span>
+                {title}
+              </h3>
               <p>{text}</p>
             </li>
           ))}
         </ul>
       </section>
+
       <section aria-labelledby="landing-steps">
-        <p className="landing-kicker">How it works</p>
+        <p className="lp-kicker">02 / how it works</p>
         <h2 id="landing-steps">How to make a 3D screenshot mockup</h2>
-        <ol className="landing-steps">
+        <ol className="lp-steps">
           {steps.map((s) => (
             <li key={s.title}>
               <h3>{s.title}</h3>
@@ -78,31 +126,23 @@ export default function Landing() {
           ))}
         </ol>
       </section>
-      {/* Lazy and far enough down that phones fetch it only on the way there, after the first
-          paint; wide screens, which never show this page, never fetch it. */}
-      <div className="landing-shot">
-        <img
-          src={showcase.src}
-          width={showcase.width}
-          height={showcase.height}
-          alt="The Project Camera editor showing a web page in 3D perspective with depth blur, next to its focus, camera and background settings"
-          loading="lazy"
-          decoding="async"
-        />
-      </div>
-      <section className="landing-privacy" aria-labelledby="landing-privacy">
-        <IconShieldLock className="landing-icon" size={20} stroke={1.75} aria-hidden="true" />
-        <h2 id="landing-privacy">Your images stay on your device</h2>
-        <p>
-          {site.name} runs entirely in your browser. Your images and projects are never uploaded:
-          projects are stored in your browser, and every export is rendered on your own computer.
-          There is no account to create and no watermark on your images.
-        </p>
+
+      <section className="lp-privacy" aria-labelledby="landing-privacy">
+        <pre aria-hidden="true">{LOCK}</pre>
+        <div>
+          <p className="lp-kicker">03 / privacy</p>
+          <h2 id="landing-privacy">Your images stay on your device</h2>
+          <p>
+            {site.name} runs entirely in your browser. Images and projects are never uploaded, every
+            export is rendered on your own computer, and there is no account and no watermark.
+          </p>
+        </div>
       </section>
+
       <section aria-labelledby="landing-faq">
-        <p className="landing-kicker">Good to know</p>
+        <p className="lp-kicker">04 / faq</p>
         <h2 id="landing-faq">Frequently asked questions</h2>
-        <div className="landing-faq">
+        <div className="lp-faq">
           {faq.map((item) => (
             <details key={item.question}>
               <summary>
@@ -114,13 +154,12 @@ export default function Landing() {
         </div>
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: faqJsonLd }} />
       </section>
-      <footer className="landing-footer">
-        <span className="studio-mark" aria-hidden="true">
-          <BrandMark size={13} />
-        </span>
+
+      <footer className="lp-footer">
         <p>
-          {site.name} is open source. <a href={site.repository}>View the code on GitHub</a>
+          {site.name} is open source. <a href={site.repository}>View the code on GitHub ↗</a>
         </p>
+        <p aria-hidden="true">GPL-3.0 · no account · no uploads · EOF</p>
       </footer>
     </section>
   );

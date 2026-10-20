@@ -42,6 +42,8 @@ export const metadata: Metadata = {
 };
 export const viewport: Viewport = {
   themeColor: [
+    // Phones get the landing page, which is dark in either theme.
+    { media: '(max-width: 899px)', color: '#0b0a0c' },
     { media: '(prefers-color-scheme: light)', color: '#f5f5f7' },
     { media: '(prefers-color-scheme: dark)', color: '#19191c' },
   ],
