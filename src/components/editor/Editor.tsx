@@ -106,7 +106,8 @@ async function boot(): Promise<Opened> {
     clean: !!saved && JSON.stringify(saved) === JSON.stringify(working.project),
   };
 }
-export default function Editor() {
+/** The studio. `landing` stands in for it on screens too small to edit on. */
+export default function Editor({ landing }: { landing: React.ReactNode }) {
   const project = useStudio((s) => s.project),
     scene = useStudio(selectedScene),
     mode = useStudio((s) => s.mode),
@@ -825,27 +826,7 @@ export default function Editor() {
           void importFiles([...e.dataTransfer.files]);
         }}
       >
-        <section className="desktop-only" aria-labelledby="desktop-only-title">
-          <span className="studio-mark" aria-hidden="true">
-            <BrandMark size={22} />
-          </span>
-          <h1 id="desktop-only-title">Please open Project Camera on a desktop</h1>
-          <p>
-            Project Camera is built for a larger screen, a mouse and a keyboard. Visit this page on
-            your computer to edit your images.
-          </p>
-          <button
-            className="primary"
-            onClick={() => {
-              void navigator.clipboard
-                ?.writeText(window.location.href)
-                .then(() => notify('Link copied. Open it on your computer.', 'success'))
-                .catch(() => notify(window.location.href, 'info'));
-            }}
-          >
-            <Copy size={16} /> Copy link
-          </button>
-        </section>
+        {landing}
         <header className="topbar">
           <div className="topbar-left">
             <button
@@ -1187,6 +1168,8 @@ export default function Editor() {
           className="visually-hidden"
           type="file"
           accept={VIDEO_MODE_ENABLED ? ACCEPT : 'image/*,.svg'}
+          aria-label="Import files"
+          tabIndex={-1}
           multiple
           onChange={(e) => {
             void importFiles([...(e.target.files || [])], target.current);
@@ -1199,6 +1182,7 @@ export default function Editor() {
           type="file"
           accept="image/*,.svg"
           aria-label="Upload a photo or screenshot"
+          tabIndex={-1}
           onChange={(e) => {
             const files = [...(e.target.files || [])];
             e.target.value = '';
@@ -1212,6 +1196,8 @@ export default function Editor() {
           className="visually-hidden"
           type="file"
           accept=".zip"
+          aria-label="Import a project file"
+          tabIndex={-1}
           onChange={async (e) => {
             const f = e.target.files?.[0];
             e.target.value = '';

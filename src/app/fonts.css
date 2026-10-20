@@ -1,0 +1,39 @@
+/* Inter 4.001 in two faces of one family. The Latin face is a subset of the full font
+   (see THIRD_PARTY_NOTICES.md); layout.tsx preloads it. Browsers fetch the full face only
+   when a page shows other characters, such as Cyrillic or Greek text. Text layers on the
+   canvas use the same family by its name, 'Inter'. Both files carry their version in the
+   name because they are cached as immutable. */
+@font-face {
+  font-family: 'Inter';
+  src: url('/fonts/InterVariable-4.001.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range:
+    U+100-130, U+132-151, U+154-2BA, U+2BD-2C5, U+2C7-2D9, U+2DB, U+2DD-303, U+306-307, U+309-328,
+    U+32C-52F, U+E3F, U+1D00-1FFE, U+2070-20AB, U+20AD-2121, U+2126-2189, U+2202-2211, U+221A-2298,
+    U+2423-24EA, U+25A0-27FA, U+2913, U+2A38, U+2B06-2B24, U+2C7C-2C7F, U+2DFF-2E18, U+A69F, U+A7FF,
+    U+A92E, U+E000-E2DC, U+EE01-EEE1, U+F6C3, U+1F12F-1F16B, U+1F850-1F852;
+}
+@font-face {
+  font-family: 'Inter';
+  src: url('/fonts/InterVariable-4.001-latin.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2190-21FF, U+2212, U+2215, U+2300-23FF, U+FEFF, U+FFFD;
+}
+/* Arial scaled to Inter's metrics, so text doesn't shift when Inter arrives. */
+@font-face {
+  font-family: 'Inter Fallback';
+  src: local('Arial');
+  ascent-override: 89.79%;
+  descent-override: 22.36%;
+  line-gap-override: 0%;
+  size-adjust: 107.89%;
+}
+:root {
+  --font-studio: 'Inter', 'Inter Fallback';
+}

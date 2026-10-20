@@ -1,9 +1,13 @@
 import type { Metadata, Viewport } from 'next';
-import localFont from 'next/font/local';
+import { preload } from 'react-dom';
 import { Analytics } from '@vercel/analytics/next';
-// Only tokens and component styles: the app uses no Radix layout or utility props.
-import '@radix-ui/themes/tokens.css';
+// Only tokens and component styles: the app uses no Radix layout or utility props. Of the
+// color scales, it uses the blue accent and gray only.
+import '@radix-ui/themes/tokens/colors/gray.css';
+import '@radix-ui/themes/tokens/colors/blue.css';
+import '@radix-ui/themes/tokens/base.css';
 import '@radix-ui/themes/components.css';
+import './fonts.css';
 import './globals.css';
 import './sidebar.css';
 import './controls.css';
@@ -12,12 +16,7 @@ import './studio.css';
 import './whirl.css';
 import './polish.css';
 import { site } from '@/lib/site';
-const inter = localFont({
-  src: '../fonts/InterVariable.woff2',
-  variable: '--font-studio',
-  display: 'swap',
-  weight: '100 900',
-});
+import showcase from '@/components/landing/showcase.webp';
 export const metadata: Metadata = {
   metadataBase: site.url,
   title: { default: site.title, template: `%s | ${site.name}` },
@@ -70,7 +69,9 @@ const jsonLd = JSON.stringify({
       browserRequirements:
         'Requires JavaScript and WebGL. Works best in desktop Chrome, Edge or Safari.',
       image: new URL('/opengraph-image.jpg', site.url).href,
+      screenshot: new URL(showcase.src, site.url).href,
       isAccessibleForFree: true,
+      license: 'https://www.gnu.org/licenses/gpl-3.0.html',
       offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
       featureList: [
         '3D camera with zoom, rotation and tilt',
@@ -84,8 +85,14 @@ const jsonLd = JSON.stringify({
   ],
 }).replace(/</g, '\\u003c');
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  // The Latin face of Inter, declared in fonts.css. Other faces load only when needed.
+  preload('/fonts/InterVariable-4.001-latin.woff2', {
+    as: 'font',
+    type: 'font/woff2',
+    crossOrigin: 'anonymous',
+  });
   return (
-    <html lang="en" className={inter.variable}>
+    <html lang="en">
       <body>
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd }} />
         {children}

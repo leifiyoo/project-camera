@@ -30,7 +30,7 @@ export default function ColorPicker({
           variant="soft"
           color="gray"
           className="color-trigger"
-          aria-label="Choose color"
+          aria-label={`Choose color, ${value.toUpperCase()}`}
           title={value}
         >
           <span className="color-trigger-swatch" style={{ background: value }} />

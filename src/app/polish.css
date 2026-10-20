@@ -1,53 +1,437 @@
 /* Workspace polish: header, feedback, empty state and new controls. Loaded last. */
 
-/* ---------- Desktop only ---------- */
-.desktop-only {
+/* ---------- Landing ----------
+   Screens narrower than the studio get a page about it instead (Landing.tsx). */
+.landing {
   display: none;
 }
 @media (max-width: 899px) {
-  .studio > :not(.desktop-only, .toast) {
+  .studio > :not(.landing, .toast) {
     display: none !important;
   }
   .studio {
+    height: auto;
     min-height: 100dvh;
-    display: grid;
-    place-items: center;
+    display: block;
+    overflow: visible;
     background: var(--bg);
   }
-  .desktop-only {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 14px;
-    max-width: 360px;
-    padding: 32px 24px;
-    text-align: center;
-  }
-  .desktop-only .studio-mark {
-    width: 52px;
-    height: 52px;
-    border-radius: 16px;
-    margin-bottom: 6px;
-  }
-  .desktop-only h1 {
-    font-size: 22px;
-    font-weight: 600;
-    letter-spacing: -0.03em;
-    line-height: 1.2;
-  }
-  .desktop-only p {
-    color: var(--muted);
-    font-size: 14px;
+  .landing {
+    /* Darker than --muted, so body text keeps a 4.5:1 contrast on --bg. */
+    --landing-muted: color-mix(in srgb, var(--muted) 70%, var(--text));
+    /* The studio's Mist and Night gradients, the backdrops of the pictures. */
+    --landing-backdrop: linear-gradient(160deg, #e0eafc, #cfdef3);
+    --lp-page: #fff;
+    --lp-soft: #f1f2f5;
+    --lp-line: #e1e4ea;
+    --lp-band-a: #0f2027;
+    --lp-band-b: #2c5364;
+    --lp-ink: #fff;
+    --lp-shadow: 22 38 64;
+    display: block;
+    max-width: 688px;
+    margin: 0 auto;
+    padding: 0 20px 40px;
+    font-size: 15px;
     line-height: 1.55;
+    letter-spacing: -0.011em;
   }
-  .desktop-only .primary {
-    margin-top: 8px;
-    height: 40px;
-    padding: 0 18px;
-    border-radius: 12px;
-    display: inline-flex;
+  .landing p {
+    text-wrap: pretty;
+  }
+  :root[data-theme='dark'] .landing {
+    --landing-backdrop: linear-gradient(160deg, #0f2027, #2c5364);
+    --lp-page: #1d1d20;
+    --lp-soft: #29292d;
+    --lp-line: #3a3a40;
+    --lp-band-a: #e0eafc;
+    --lp-band-b: #cfdef3;
+    --lp-ink: #141414;
+    --lp-shadow: 0 0 0;
+  }
+  .landing-brand {
+    display: flex;
     align-items: center;
+    gap: 9px;
+    height: 60px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+  }
+  .landing h1 {
+    margin-top: 16px;
+    font-size: clamp(40px, 11vw, 68px);
+    font-weight: 700;
+    line-height: 1.02;
+    letter-spacing: -0.046em;
+    text-wrap: balance;
+  }
+  .landing h1 span {
+    color: var(--muted);
+  }
+  .landing-lead {
+    max-width: 32em;
+    margin-top: 16px;
+    color: var(--landing-muted);
+    font-size: 16.5px;
+    line-height: 1.5;
+  }
+  .landing-facts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+    margin-top: 20px;
+  }
+  .landing-facts li {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 28px;
+    font-size: 13px;
+    font-weight: 550;
+  }
+  .landing-facts li::before {
+    content: '';
+    width: 7px;
+    height: 4px;
+    margin: -2px 1px 0;
+    border: solid;
+    border-width: 0 0 1.5px 1.5px;
+    transform: rotate(-45deg);
+  }
+  .landing-icon {
+    box-sizing: content-box;
+    flex: none;
+    padding: 9px;
+    border: 1px solid var(--line);
+    border-radius: 11px;
+    background: var(--surface2);
+  }
+  .landing-desktop {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 14px;
+    margin-top: 24px;
+    padding: 16px;
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    background: var(--surface);
+  }
+  .landing-desktop p {
+    color: var(--landing-muted);
+    font-size: 14px;
+  }
+  .landing-copy {
+    grid-column: 1 / -1;
+    height: 48px;
     gap: 8px;
+    border-radius: 14px;
+    font-size: 15px;
+  }
+  .landing-copy-status {
+    grid-column: 1 / -1;
+    margin-top: -6px;
+    color: var(--landing-muted);
+    font-size: 13px;
+    overflow-wrap: anywhere;
+  }
+  .landing-copy-status:empty {
+    display: none;
+  }
+
+  /* The drawn hero: a page in 3D on a backdrop, like a finished shot. */
+  .landing-stage,
+  .landing-shot {
+    margin: 24px -8px 0;
+    border: 1px solid var(--line);
+    border-radius: 24px;
+    overflow: hidden;
+    background: var(--landing-backdrop);
+  }
+  .landing-stage {
+    position: relative;
+    display: grid;
+    place-items: center;
+    aspect-ratio: 16 / 10;
+    /* Scales with the stage, so phones and tablets get the same depth. */
+    perspective: 150vw;
+  }
+  .landing-stage::before {
+    content: '';
+    position: absolute;
+    inset: 74% 16% 6% 24%;
+    background: radial-gradient(closest-side, rgb(var(--lp-shadow) / 0.3), transparent);
+  }
+  .landing-screen {
+    width: 72%;
+    border-radius: 10px;
+    overflow: hidden;
+    transform: rotateY(32deg) rotateX(12deg) rotate(-4deg);
+    box-shadow:
+      0 1px 2px rgb(var(--lp-shadow) / 0.12),
+      0 10px 20px -6px rgb(var(--lp-shadow) / 0.2),
+      0 34px 60px -18px rgb(var(--lp-shadow) / 0.4);
+  }
+  :root[data-theme='dark'] .landing-screen {
+    outline: 1px solid rgb(255 255 255 / 0.1);
+    outline-offset: -1px;
+  }
+  .landing-screen svg {
+    width: 100%;
+    height: auto;
+  }
+  .lp-page {
+    fill: var(--lp-page);
+  }
+  .lp-soft {
+    fill: var(--lp-soft);
+  }
+  .lp-line {
+    fill: var(--lp-line);
+  }
+  .lp-band-a {
+    stop-color: var(--lp-band-a);
+  }
+  .lp-band-b {
+    stop-color: var(--lp-band-b);
+  }
+  .lp-ink {
+    fill: var(--lp-ink);
+  }
+  .lp-glow {
+    fill: var(--lp-ink);
+    opacity: 0.22;
+  }
+  .landing-focus {
+    fill: none;
+    stroke: var(--lp-ink);
+    stroke-width: 2;
+    stroke-linecap: round;
+  }
+  .landing-focus :last-child {
+    fill: var(--lp-ink);
+  }
+
+  .landing section {
+    margin-top: 80px;
+  }
+  .landing-kicker {
+    margin-bottom: 8px;
+    color: var(--landing-muted);
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .landing h2 {
+    font-size: clamp(28px, 7.6vw, 44px);
+    font-weight: 700;
+    line-height: 1.08;
+    letter-spacing: -0.04em;
+    text-wrap: balance;
+  }
+  .landing h3 {
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1.35;
+    letter-spacing: -0.02em;
+  }
+  .landing h3 + p,
+  .landing h2 + p {
+    margin-top: 4px;
+    color: var(--landing-muted);
+  }
+  .landing h2 + p {
+    margin-top: 14px;
+  }
+  .landing-features {
+    display: grid;
+    gap: 10px;
+    margin-top: 28px;
+  }
+  .landing-features li {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    column-gap: 14px;
+    padding: 18px;
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    background: var(--surface);
+  }
+  .landing-features .landing-icon {
+    grid-row: span 2;
+  }
+  .landing-features p {
+    font-size: 14.5px;
+  }
+  .landing-shot {
+    margin-top: 56px;
+  }
+  .landing-shot img {
+    width: 100%;
+    height: auto;
+  }
+  .landing-steps {
+    margin-top: 32px;
+    counter-reset: step;
+  }
+  .landing-steps li {
+    position: relative;
+    padding: 4px 0 32px 52px;
+    counter-increment: step;
+  }
+  .landing-steps li:last-child {
+    padding-bottom: 0;
+  }
+  .landing-steps li::before {
+    content: counter(step);
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--text);
+    color: var(--inverse);
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .landing-steps li:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    top: 40px;
+    bottom: 8px;
+    left: 15.5px;
+    width: 1px;
+    background: var(--line);
+  }
+  .landing .landing-privacy {
+    padding: 24px 20px;
+    border: 1px solid var(--line);
+    border-radius: 24px;
+    background: var(--surface);
+  }
+  .landing-privacy .landing-icon {
+    margin-bottom: 18px;
+  }
+  .landing-faq {
+    margin-top: 24px;
+    border-top: 1px solid var(--line);
+  }
+  .landing-faq details {
+    border-bottom: 1px solid var(--line);
+  }
+  .landing-faq summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    min-height: 60px;
+    padding: 12px 0;
+    border-radius: 10px;
+    cursor: pointer;
+    list-style: none;
+  }
+  .landing-faq summary::-webkit-details-marker {
+    display: none;
+  }
+  .landing-faq summary::after {
+    content: '';
+    flex: none;
+    width: 7px;
+    height: 7px;
+    margin: -4px 5px 0 0;
+    border: solid var(--landing-muted);
+    border-width: 0 1.75px 1.75px 0;
+    transform: rotate(45deg);
+  }
+  .landing-faq [open] summary::after {
+    margin-top: 4px;
+    transform: rotate(225deg);
+  }
+  .landing-faq details p {
+    padding: 0 34px 20px 0;
+    color: var(--landing-muted);
+  }
+  .landing-footer {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 48px;
+    color: var(--landing-muted);
+    font-size: 14px;
+  }
+  .landing-footer .studio-mark {
+    width: 24px;
+    height: 24px;
+    border-radius: 7px;
+  }
+  .landing a {
+    color: var(--text);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+}
+@media (min-width: 560px) and (max-width: 899px) {
+  .landing {
+    padding: 0 40px 56px;
+  }
+  .landing-lead {
+    font-size: 18px;
+  }
+  .landing-facts {
+    gap: 8px;
+  }
+  .landing-facts li {
+    height: 32px;
+    padding: 0 12px 0 11px;
+    border: 1px solid var(--line);
+    border-radius: 99px;
+    background: var(--surface);
+  }
+  .landing-features {
+    grid-template-columns: 1fr 1fr;
+  }
+  .landing-features li {
+    display: block;
+    padding: 22px;
+  }
+  .landing-features .landing-icon {
+    margin-bottom: 18px;
+  }
+  .landing-features li:last-child {
+    display: grid;
+    grid-column: 1 / -1;
+  }
+  .landing-features li:last-child .landing-icon {
+    margin-bottom: 0;
+  }
+  .landing-desktop {
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+  }
+  .landing-copy {
+    grid-column: auto;
+    padding: 0 22px;
+  }
+}
+@media (max-width: 899px) and (prefers-reduced-motion: no-preference) {
+  .landing {
+    interpolate-size: allow-keywords;
+  }
+  .landing-faq summary::after {
+    transition:
+      transform 0.25s ease,
+      margin 0.25s ease;
+  }
+  .landing-faq details::details-content {
+    block-size: 0;
+    overflow: hidden;
+    transition:
+      block-size 0.25s ease,
+      content-visibility 0.25s allow-discrete;
+  }
+  .landing-faq details[open]::details-content {
+    block-size: auto;
   }
 }
 
@@ -384,9 +768,9 @@ kbd,
 .empty-stage-formats {
   display: block;
   margin-top: 12px;
-  color: var(--muted);
+  /* A little darker than --muted, so the small type keeps a 4.5:1 contrast. */
+  color: color-mix(in srgb, var(--muted) 85%, var(--text));
   font-size: 11.5px;
-  opacity: 0.8;
 }
 .empty-stage-recent {
   margin-top: 34px;

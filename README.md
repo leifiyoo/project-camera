@@ -96,17 +96,18 @@ CI runs these checks on Linux, Windows and macOS.
 
 Built with Next.js (static export), TypeScript, React, Three.js and Zustand.
 
-| Folder                  | What's inside                                      |
-| ----------------------- | -------------------------------------------------- |
-| `src/app`               | Page shell, styles, app icons                      |
-| `src/components/editor` | Editor UI: stage, sidebar, timeline, export dialog |
-| `src/components/ui`     | Shared controls and the logo                       |
-| `src/lib/studio`        | Project documents, undo, camera and easing logic   |
-| `src/lib/media`         | Image/video import, thumbnails, SVG sanitizing     |
-| `src/lib/render`        | Three.js renderer with depth blur and shadows      |
-| `src/lib/export`        | PNG and video export                               |
-| `src/lib/storage`       | IndexedDB storage and ZIP import/export            |
-| `scripts/csp.mjs`       | Adds the Content Security Policy after the build   |
+| Folder                   | What's inside                                      |
+| ------------------------ | -------------------------------------------------- |
+| `src/app`                | Page shell, styles, app icons                      |
+| `src/components/editor`  | Editor UI: stage, sidebar, timeline, export dialog |
+| `src/components/landing` | Page shown on small screens and to search engines  |
+| `src/components/ui`      | Shared controls and the logo                       |
+| `src/lib/studio`         | Project documents, undo, camera and easing logic   |
+| `src/lib/media`          | Image/video import, thumbnails, SVG sanitizing     |
+| `src/lib/render`         | Three.js renderer with depth blur and shadows      |
+| `src/lib/export`         | PNG and video export                               |
+| `src/lib/storage`        | IndexedDB storage and ZIP import/export            |
+| `scripts/csp.mjs`        | Adds the Content Security Policy after the build   |
 
 </details>
 
