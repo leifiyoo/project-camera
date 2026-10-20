@@ -1,6 +1,5 @@
 import { BrandMark } from '@/components/ui/brand-mark';
 import { site } from '@/lib/site';
-import { AsciiCamera } from './AsciiCamera';
 import { CopyLinkButton } from './CopyLinkButton';
 import { facts, faq, features, steps } from './content';
 import showcase from './showcase.webp';
@@ -68,7 +67,28 @@ export default function Landing() {
         ))}
       </ul>
 
-      <AsciiCamera />
+      {/* A real export: the studio shot in 3D, with depth blur, on a transparent background.
+          Lazy, so wide screens, which never show this page, never fetch it; on phones it is in
+          view and loads right after the headline paints. */}
+      <figure className="lp-shot">
+        <figcaption>
+          <span>
+            <i /> export.png
+          </span>
+          <span>made with {site.name}</span>
+        </figcaption>
+        <div>
+          <img
+            src={showcase.src}
+            width={showcase.width}
+            height={showcase.height}
+            alt="The Project Camera editor showing a web page in 3D perspective with depth blur, next to its focus, camera and background settings"
+            loading="lazy"
+            decoding="async"
+          />
+        </div>
+        <p>3D camera · depth blur · transparent PNG</p>
+      </figure>
 
       <div className="lp-desktop">
         <p>
@@ -105,19 +125,6 @@ export default function Landing() {
             </li>
           ))}
         </ol>
-        {/* Lazy and far enough down that phones fetch it only on the way there, after the first
-            paint; wide screens, which never show this page, never fetch it. */}
-        <figure className="lp-shot">
-          <img
-            src={showcase.src}
-            width={showcase.width}
-            height={showcase.height}
-            alt="The Project Camera editor showing a web page in 3D perspective with depth blur, next to its focus, camera and background settings"
-            loading="lazy"
-            decoding="async"
-          />
-          <figcaption>fig. 01: the studio, on a computer</figcaption>
-        </figure>
       </section>
 
       <section className="lp-privacy" aria-labelledby="landing-privacy">

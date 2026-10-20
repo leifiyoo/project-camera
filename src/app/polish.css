@@ -134,15 +134,16 @@
     color: var(--lp-pink);
   }
 
-  /* The ASCII camera (AsciiCamera.tsx): 72 × 24 cells, scaled to the full width. */
-  .lp-cam {
+  /* The hero: a real export, framed like a window, on a backdrop in the page's pink. */
+  .lp-shot {
     margin: 32px 0 0;
     border: 1px solid var(--lp-pink);
     box-shadow:
       6px 6px 0 var(--lp-pink),
       0 0 40px -8px var(--lp-glow);
   }
-  .lp-cam-bar {
+  .lp-shot figcaption,
+  .lp-shot p {
     display: flex;
     justify-content: space-between;
     gap: 12px;
@@ -151,13 +152,13 @@
     font-size: 11px;
     white-space: nowrap;
   }
-  figcaption.lp-cam-bar {
+  .lp-shot figcaption {
     border-bottom: 1px solid var(--lp-line);
   }
-  p.lp-cam-bar {
+  .lp-shot p {
     border-top: 1px solid var(--lp-line);
   }
-  .lp-cam-bar i {
+  .lp-shot i {
     display: inline-block;
     width: 7px;
     height: 7px;
@@ -166,37 +167,16 @@
     background: var(--lp-pink);
     box-shadow: 0 0 8px var(--lp-pink);
   }
-  .lp-cam-stage {
-    container-type: inline-size;
-    position: relative;
-    overflow: hidden;
+  .lp-shot div {
+    padding: 24px 14px 0 0;
     background:
-      repeating-linear-gradient(transparent 0 2px, rgb(255 255 255 / 0.025) 2px 3px),
-      radial-gradient(ellipse at 45% 50%, rgb(255 46 147 / 0.14), transparent 65%);
-    cursor: grab;
-    touch-action: pan-y;
-    user-select: none;
-    -webkit-user-select: none;
+      radial-gradient(circle at 18% 12%, #ff8cc6, transparent 45%),
+      linear-gradient(150deg, #ff2e93 20%, #6b0a40 95%);
   }
-  .lp-cam-stage:active {
-    cursor: grabbing;
-  }
-  .lp-cam-stage pre {
-    padding: 4px 0;
-    color: var(--lp-pink);
-    font-size: calc(100cqi / 43.6);
-    line-height: 1.15;
-    text-shadow: 0 0 6px var(--lp-glow);
-  }
-  .lp-cam-focus {
-    position: absolute;
-    translate: -50% -50%;
-    background: var(--lp-bg);
-    color: var(--lp-ink);
-    font-size: calc(100cqi / 43.6);
-    font-weight: 700;
-    line-height: 1.15;
-    text-shadow: 0 0 6px #fff;
+  .lp-shot img {
+    width: 100%;
+    height: auto;
+    filter: drop-shadow(0 18px 24px rgb(40 0 20 / 0.55));
   }
 
   .lp-desktop {
@@ -322,20 +302,6 @@
     margin-left: -56px;
     color: var(--lp-pink);
     font-weight: 400;
-  }
-  .lp-shot {
-    margin: 32px 0 0;
-  }
-  .lp-shot img {
-    width: 100%;
-    height: auto;
-    border: 1px solid var(--lp-pink);
-    box-shadow: -6px 6px 0 var(--lp-pink);
-  }
-  .lp-shot figcaption {
-    margin-top: 12px;
-    color: var(--lp-dim);
-    font-size: 12px;
   }
 
   .landing .lp-privacy {
