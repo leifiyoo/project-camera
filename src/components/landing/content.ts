@@ -1,36 +1,56 @@
-// Copy for the landing page. Search engines index the phone layout, so this is the text they
-// read; keep it true to what the studio does. The FAQ also feeds the page's structured data.
+// Copy for the landing page, with an icon for each feature. Search engines index the phone
+// layout, so this is the text they read; keep it true to what the studio does. The FAQ also
+// feeds the page's structured data.
+import {
+  IconAspectRatio,
+  IconBackground,
+  IconFocus2,
+  IconFolderOpen,
+  IconPhotoDown,
+  IconRotate3d,
+  IconTypography,
+} from '@tabler/icons-react';
 
 export const features = [
   {
+    icon: IconRotate3d,
     title: '3D camera',
     text: 'Zoom, rotate and tilt your image in true 3D perspective, and widen or narrow the field of view.',
   },
   {
+    icon: IconFocus2,
     title: 'Depth blur',
     text: 'Set the focus point by hand or automatically, then choose how softly the rest falls out of focus.',
   },
   {
+    icon: IconBackground,
     title: 'Backgrounds and style',
     text: 'Use a solid color, a gradient, an image or no background. Add rounded corners, a stroke and a soft shadow.',
   },
   {
+    icon: IconTypography,
     title: 'Text and logos',
     text: 'Place a headline, a caption or your logo on the canvas.',
   },
   {
+    icon: IconAspectRatio,
     title: 'Every format',
     text: 'Frame the shot for slides, posts or stories: 16:9, 3:2, 4:3, 1:1, 4:5, 9:16 or 21:9.',
   },
   {
+    icon: IconPhotoDown,
     title: 'Export up to 4K',
     text: 'Download a PNG at HD, 2K, 4K or a custom size, with a transparent background if you need one.',
   },
   {
+    icon: IconFolderOpen,
     title: 'Projects',
     text: 'Save your work in the browser and move it to another computer as a project file.',
   },
 ] as const;
+
+// The promises the page leads with, as short chips under the headline.
+export const facts = ['Free', 'No upload', 'No watermark', 'Up to 4K'] as const;
 
 export const steps = [
   {
